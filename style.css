@@ -224,3 +224,4 @@ button.chip{cursor:pointer}
 .zk{font-family:var(--disp);font-weight:400!important;letter-spacing:2px}
 @media (max-height:700px){.hero{width:84px}.logo{font-size:44px}.tb{min-height:50px;padding:5px 8px}.spr.player{--w:27%}.spr.enemy{--w:24%}}
 @media (prefers-reduced-motion:reduce){.btn.big-btn,.node.boss,.tb.ready{animation:none}}
+.scroll>*{flex-shrink:0}
