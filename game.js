@@ -353,7 +353,7 @@ function tick(dt) {
     if (B.queue.length) { B.queue.forEach(q => q.t -= dt); while (B.queue.length && B.queue[0].t <= 0) enemyHit(B.queue.shift().m); }
     if (B.charge) {
       B.charge.t -= dt;
-      if (B.charge.t <= 0) { B.charge = null; B.eT = 0; enemyHit(2.4, true); }
+      if (B.charge.t <= 0) { const dodged = B.charge.dodged; B.charge = null; B.eT = 0; if (dodged) { floatText('Ausgewichen!', 'p', 'miss'); vis.dodge(); } else enemyHit(2.4, true); }
     } else if (!B.queue.length) {
       B.eT += dt;
       if (B.eT >= ei) {
@@ -437,6 +437,17 @@ function useTech(i) {
   if (T.mult || T.hakai || T.stun || T.burn) { if (delay > 0) later(delay, hit); else hit(); }
 }
 
+const DODGE_COST = 15;
+function counterHint() {
+  const names = { kiai: 'Kiai', taiyoken: 'Solar Flare', teleport: 'Instant Transmission' };
+  return run.techs.map(t => names[t.id]).filter(Boolean).join(' / ');
+}
+function dodgeCharge() {
+  if (!B || B.over || !B.charge || B.charge.dodged) return;
+  if (B.ki < DODGE_COST) { toast('Zu wenig Ki zum Ausweichen!'); return; }
+  B.ki -= DODGE_COST; B.charge.dodged = true; sfx('tech'); vis.dodge();
+}
+
 function useItem(i) {
   if (!B || B.over) return;
   const id = run.items[i]; if (!id) return;
@@ -450,7 +461,10 @@ function useItem(i) {
 function autoPlay() {
   const s = B.S, has = id => run.techs.findIndex(t => t.id === id);
   const ready = i => i >= 0 && (B.cd[run.techs[i].id] || 0) <= 0 && B.ki >= TECH[run.techs[i].id].cost;
-  if (B.charge) for (const id of ['kiai', 'taiyoken', 'teleport', 'ui']) { const i = has(id); if (ready(i)) return useTech(i); }
+  if (B.charge && !B.charge.dodged) {
+    for (const id of ['kiai', 'taiyoken', 'teleport', 'ui']) { const i = has(id); if (ready(i)) return useTech(i); }
+    if (B.ki >= DODGE_COST) return dodgeCharge();
+  }
   if (run.hp < s.maxHp * .45) { const i = has('heal'); if (ready(i)) return useTech(i); }
   if (run.hp < s.maxHp * .65 && B.shield <= 0) { const i = has('kishield'); if (ready(i)) return useTech(i); }
   if (SAVE.set.autoSenzu && run.hp < s.maxHp * .3) { const i = run.items.indexOf('senzu'); if (i >= 0) return useItem(i); }
@@ -606,7 +620,7 @@ function hud() {
   const s = stats();
   return `<div class="hud"><span class="chip">⛰️ ${run.floor}${run.endless ? '' : '/' + maxFloor()}</span><span class="chip">🪙 ${run.gold}</span>
     <span class="chip">${ART.ball(4, true, 16)} ${SAVE.balls}/7</span>${run.grav ? `<span class="chip" style="color:var(--red)">🌑${run.grav}</span>` : ''}<span class="sp"></span>
-    <button class="chip" data-a="build">🎒 Build</button></div>
+    <button class="chip" data-a="build" title="Build" aria-label="Build">🎒</button></div>
     <div class="bar hp" style="margin-bottom:8px"><i style="width:${clamp(run.hp / s.maxHp * 100, 0, 100)}%"></i><span>${Math.ceil(run.hp)} / ${s.maxHp} LP</span></div>`;
 }
 function pathBar() {
@@ -651,7 +665,7 @@ const SCREENS = {
       <button class="btn big-btn" data-a="start">${SAVE.run ? '⚔️ Neuer Run (verwirft den alten)' : '⚔️ RUN STARTEN'}</button>
       <div class="row"><button class="btn sec" data-a="metaScr">🏋️ Training</button><button class="btn sec" data-a="chars">🥋 Kämpfer</button></div>
       ${SAVE.balls >= 7 ? '<button class="btn red" data-a="wish">🐉 SHENLONG RUFEN! (7/7)</button>' : `<div class="panel small mut" style="width:100%">${ballsRow(SAVE.balls, 26)}<br>Dragonbälle (${SAVE.balls}/7) findest du in Elite-Kämpfen, bei Bossen und in Ereignissen. Sie bleiben nach dem Tod erhalten!</div>`}
-      <div class="panel small mut" style="width:100%;text-align:left"><b style="color:var(--txt)">So geht's:</b><br>Der Kampf läuft automatisch. Setze <b>Techniken</b> (Ki) im richtigen Moment ein und baue zwischen den Kämpfen deinen <b>Build</b>. Bei <b>⚠️ Aufladung</b> unterbrichst du mit Kiai oder weichst aus. Gegner haben <b>Eigenschaften</b> – lies sie! Stirbst du, bekommst du ⭐ Zenkai und wirst dauerhaft stärker. Schaffst du eine Saga, wird die <b>Schwerkraft</b> erhöht.</div>
+      <div class="panel small mut" style="width:100%;text-align:left"><b style="color:var(--txt)">So geht's:</b><br>Der Kampf läuft automatisch. Setze <b>Techniken</b> (Ki) im richtigen Moment ein und baue zwischen den Kämpfen deinen <b>Build</b>. Bei <b>⚠️ Aufladung</b> tippst du die rote Warnung an, um auszuweichen (15 Ki) – oder unterbrichst mit Kiai. Gegner haben <b>Eigenschaften</b> – lies sie! Stirbst du, bekommst du ⭐ Zenkai und wirst dauerhaft stärker. Schaffst du eine Saga, wird die <b>Schwerkraft</b> erhöht.</div>
       <div class="row" style="width:100%"><button class="btn sec" data-a="settings">⚙️ Einstellungen</button><button class="btn sec" data-a="reset">🗑️ Reset</button></div>
     </div>`);
   },
@@ -679,7 +693,7 @@ const SCREENS = {
         <canvas id="fxc"></canvas>
         <div class="eplate"><div class="en">${tag}<span>${e.n}</span><small>Etage ${run.floor}</small></div>
           <div class="bar hp e"><i id="eHp"></i><span id="eHpT"></span></div><div class="tcs">${traitChips(e)}</div></div>
-        <div class="warn" id="warn" hidden>⚠️ AUFLADUNG! <small>Kiai · Solar Flare · Ausweichen</small><div class="bar"><i id="warnB"></i></div></div>
+        <button class="warn" id="warn" data-a="dodge" hidden><span id="warnT">⚠️ AUFLADUNG!</span><small id="warnS">Tippen = Ausweichen (15 Ki)</small><div class="bar"><i id="warnB"></i></div></button>
         <div class="banner" id="banner"></div>
       </div>
       <div class="fighter pl"><div class="nm">${ch.n} <span class="bufflist" id="buffs"></span></div>
@@ -803,7 +817,13 @@ function updateBattleUI() {
   $('#pHp').style.width = clamp(run.hp / s.maxHp * 100, 0, 100) + '%'; $('#pHpT').textContent = Math.max(0, Math.ceil(run.hp)) + ' / ' + s.maxHp + (B.shield > 0 ? '  🛡️' + Math.ceil(B.shield) : '');
   $('#pKi').style.width = (B.ki / s.maxKi * 100) + '%'; $('#pKiT').textContent = 'Ki ' + Math.floor(B.ki);
   const w = $('#warn'); w.hidden = !B.charge;
-  if (B.charge) $('#warnB').style.width = (B.charge.t / B.charge.max * 100) + '%';
+  if (B.charge) {
+    $('#warnB').style.width = (B.charge.t / B.charge.max * 100) + '%';
+    const d = B.charge.dodged;
+    $('#warnT').textContent = d ? '✅ AUSGEWICHEN!' : '⚠️ AUFLADUNG! TIPPEN!';
+    $('#warnS').textContent = d ? 'Der Schlag geht ins Leere' : 'Tippen = Ausweichen (' + DODGE_COST + ' Ki)' + (counterHint() ? ' · oder ' + counterHint() : '');
+    w.classList.toggle('ok', !!d);
+  }
   const bl = [];
   if (B.buff.ssj > 0) bl.push('👱 SSJ ' + Math.ceil(B.buff.ssj) + 's');
   if (B.buff.ui > 0) bl.push('🪽 UI ' + Math.ceil(B.buff.ui) + 's');
@@ -877,6 +897,7 @@ const ACT = {
   reset() { if (confirm('Wirklich ALLES zurücksetzen (Zenkai, Freischaltungen, Run)?')) { SAVE = defSave(); save(); go('menu'); } },
   node(d) { enterNode(+d.i); },
   tech(d) { useTech(+d.i); },
+  dodge() { dodgeCharge(); },
   item(d) { useItem(+d.i); },
   auto() { B.auto = !B.auto; SAVE.set.auto = B.auto; save(); $('#autoB').textContent = '🤖 Auto: ' + (B.auto ? 'AN' : 'AUS'); $('#autoB').classList.toggle('on', B.auto); },
   fast() { B.fast = !B.fast; SAVE.set.fast = B.fast; save(); $('#fastB').textContent = '⏩ x' + (B.fast ? 2 : 1); $('#fastB').classList.toggle('on', B.fast); },
