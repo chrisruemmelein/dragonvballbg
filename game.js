@@ -90,18 +90,19 @@ function stats() {
   const c = CHARS[run.char];
   const A = { atkPct: 0, hpPct: 0, hpFlat: 0, def: 0, regenPct: 0, crit: 0, critDmg: 0, ls: 0, spdPct: 0, hpRegen: 0, thorns: 0, taken: 0, goldPct: 0,
               ballPct: 0, lowHpAtk: 0, kiOnHit: 0, kiOnHurt: 0, execute: 0, killHeal: 0, maxKi: 0 };
-  const add = m => { for (const k in m) A[k] += m[k]; };
+  let atkMul = 1;
+  const add = m => { for (const k in m) { if (k === 'atkPct') atkMul *= 1 + m[k]; else A[k] += m[k]; } };
   add(c.mods);
   run.pass.forEach(id => add(PASS[id].m));
   run.relics.forEach(id => add(RELIC[id].m));
-  A.atkPct += meta('atk') * .08 + (SAVE.wish.power || 0) * .1;
+  atkMul *= (1 + meta('atk') * .08) * (1 + (SAVE.wish.power || 0) * .1);
   A.hpPct += meta('hp') * .10 + (SAVE.wish.power || 0) * .1;
   A.regenPct += meta('regen') * .08 + (SAVE.wish.ki || 0) * .15;
   A.crit += meta('crit') * .02;
   A.def += run.bonusDef || 0; A.hpFlat += run.bonusHp || 0;
   return {
     maxHp: Math.round((c.hp + A.hpFlat) * (1 + A.hpPct)),
-    atk: (c.atk + run.bonusAtk) * (1 + A.atkPct),
+    atk: (c.atk + run.bonusAtk) * atkMul,
     def: c.def + A.def, maxKi: c.ki + A.maxKi, regen: c.regen * (1 + A.regenPct),
     crit: clamp(c.crit + A.crit, 0, .8), critDmg: 1.6 + A.critDmg,
     ls: A.ls, spd: Math.max(.5, 1 + A.spdPct), hpRegen: A.hpRegen, thorns: A.thorns,
@@ -507,7 +508,7 @@ function useItem(i) {
   const id = run.items[i]; if (!id) return;
   const s = B.S, e = B.e;
   const boom = (mult, col) => { vis.tech({ fx: 'sphere', col }, { lv: 1 }); later(.5, () => { dealDamage(mult, { pierce: true }); if (B.ehp <= 0) winBattle(); }); };
-  if (id === 'senzu') { if (run.hp >= s.maxHp) return; heal(s.maxHp * .6); floatText('+' + Math.round(s.maxHp * .6), 'p', 'heal'); sfx('heal'); vis.healFx(); }
+  if (id === 'senzu') { if (run.hp >= s.maxHp) return; heal(s.maxHp * .5); floatText('+' + Math.round(s.maxHp * .5), 'p', 'heal'); sfx('heal'); vis.healFx(); }
   else if (id === 'elixier') { if (run.hp >= s.maxHp) return; floatText('+' + Math.round(s.maxHp - run.hp), 'p', 'heal'); run.hp = s.maxHp; sfx('heal'); vis.healFx('#9fffd0'); }
   else if (id === 'kicap') { if (B.ki >= s.maxKi - 5) return; B.ki = s.maxKi; sfx('heal'); vis.healFx('#8fd8ff'); }
   else if (id === 'zeit') { B.cd = {}; B.ki = Math.min(s.maxKi, B.ki + 40); sfx('power'); vis.healFx('#ffe14a'); vis.banner('⏳ ZEITKAPSEL!', '#ffe14a', 800); }
