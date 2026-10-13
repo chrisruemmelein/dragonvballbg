@@ -14,6 +14,7 @@ const ART = (() => {
   /* ---- Haare (Pfade im 140x226-Koordinatensystem, Kopf: cx70 cy46) ---- */
   const HAIR = {
     goku:   'M47,42 C42,32 44,24 49,20 L40,4 L58,14 L58,-8 L70,12 L82,-10 L84,14 L100,2 L92,22 C97,28 98,36 93,42 C88,30 52,30 47,42Z',
+    gokuS2: 'M47,42 C38,30 40,20 46,16 L28,-10 L52,6 L46,-28 L64,2 L70,-32 L78,2 L98,-28 L90,8 L112,-10 L94,18 C101,28 102,36 93,42 C88,30 52,30 47,42Z',
     gokuS:  'M47,42 C40,30 42,22 48,18 L34,-4 L56,10 L54,-20 L70,8 L86,-22 L86,10 L106,-4 L93,20 C99,28 100,36 93,42 C88,30 52,30 47,42Z',
     vegeta: 'M47,42 C43,30 47,22 52,17 L54,-12 L64,9 L70,-20 L76,9 L86,-12 L88,17 C93,22 97,30 93,42 L85,31 L70,35 L55,31Z',
     gohan:  'M47,42 C43,32 45,24 50,20 L44,6 L60,14 L62,-2 L72,12 L84,0 L86,16 L98,8 L92,24 C97,30 97,36 93,42 C88,32 54,30 47,42Z M54,34 C52,44 56,50 58,50 L62,36Z',
@@ -38,9 +39,11 @@ const ART = (() => {
   }
 
   function fighter(p, o = {}) {
-    const ssj = !!o.ssj;
-    const hc = ssj ? '#ffe14a' : p.hc;
-    const eye = ssj ? '#27e0c4' : (p.eye || '#15131c');
+    const F = o.form || (o.ssj ? { hair: '#ffe14a', eye: '#27e0c4', style: 'ssj' } : null);
+    const ssj = !!(F && F.hair);
+    const hc = ssj ? F.hair : p.hc;
+    const eye = (F && F.eye) || (p.eye || '#15131c');
+    const st3 = !!(F && F.style === 'ssj3');
     const ex = p.ex || [];
     const has = k => ex.includes(k);
     const skin = p.skin, build = p.build || 'normal';
@@ -58,6 +61,7 @@ const ART = (() => {
     if (has('sword')) back += `<path d="M98,66 L52,138" stroke="${OUT}" stroke-width="10" stroke-linecap="round"/><path d="M98,66 L52,138" stroke="#7a4a20" stroke-width="6" stroke-linecap="round"/>`;
     if (p.hair === 'raditz') back += `<path d="${HAIR.raditzBack}" fill="${hc}" ${S}/>`;
     if (p.hair === 'long') back += `<path d="${HAIR.longBack}" fill="${hc}" ${S}/>`;
+    if (st3 && p.hair !== 'bald' && p.hair !== 'none') back += `<path d="M40,34 L20,150 L30,200 L48,126 L58,204 L70,134 L82,204 L92,126 L110,200 L120,150 L100,34Z" fill="${hc}" ${S}/>`;
 
     /* Beine + Schuhe */
     const leg = x => `<path d="M${x},116 L${x + 16},116 L${x + 15},176 L${x - 1},176Z" fill="${bot}" ${S}/>
@@ -91,7 +95,8 @@ const ART = (() => {
     head += `<circle cx="51" cy="48" r="5" fill="${skin}" ${S}/><circle cx="89" cy="48" r="5" fill="${skin}" ${S}/>`;
     head += `<ellipse cx="70" cy="46" rx="19.5" ry="21.5" fill="${skin}" ${S}/>`;
     const brow = ssj ? '#c9a400' : (p.hair === 'bald' || p.hair === 'none' ? shade(skin, -.45) : shade(p.hc, -.1));
-    head += `<path d="M54,41 L66,45 M86,41 L74,45" stroke="${brow}" stroke-width="3.4" stroke-linecap="round"/>`;
+    if (!st3) head += `<path d="M54,41 L66,45 M86,41 L74,45" stroke="${brow}" stroke-width="3.4" stroke-linecap="round"/>`;
+    else head += `<path d="M52,40 Q60,36 67,41 M88,40 Q80,36 73,41" fill="none" stroke="${shade(skin,-.35)}" stroke-width="2.4" stroke-linecap="round"/>`;
     head += `<ellipse cx="62" cy="49" rx="3.4" ry="4.6" fill="${eye}"/><ellipse cx="78" cy="49" rx="3.4" ry="4.6" fill="${eye}"/><circle cx="63.2" cy="47.4" r="1.2" fill="#fff"/><circle cx="79.2" cy="47.4" r="1.2" fill="#fff"/>`;
     head += `<path d="M70,50 L69,56 L72,56" fill="none" stroke="${sk2}" stroke-width="1.6" stroke-linecap="round"/><path d="M62,62 Q70,66 78,62" fill="none" stroke="${OUT}" stroke-width="2.2" stroke-linecap="round" class="mouth"/>`;
     if (has('saiba')) head += `<ellipse cx="62" cy="49" rx="5" ry="6" fill="#fff"/><ellipse cx="78" cy="49" rx="5" ry="6" fill="#fff"/><circle cx="62" cy="50" r="2.6" fill="#d11"/><circle cx="78" cy="50" r="2.6" fill="#d11"/><path d="M58,62 L62,67 L66,62 L70,67 L74,62 L78,67 L82,62" fill="#fff" stroke="${OUT}" stroke-width="1.6"/>`;
@@ -107,7 +112,7 @@ const ART = (() => {
     /* Haare & Kopfschmuck (vor dem Gesicht) */
     let hair = '';
     const hp = p.hair;
-    const hairPath = hp === 'goku' ? (ssj ? HAIR.gokuS : HAIR.goku) : HAIR[hp];
+    const hairPath = hp === 'goku' ? (ssj ? (F.style === 'ssj2' ? HAIR.gokuS2 : HAIR.gokuS) : HAIR.goku) : HAIR[hp];
     if (hairPath && hp !== 'bald' && hp !== 'none') {
       const path = (hp === 'raditz' || hp === 'long') ? HAIR[hp] : hairPath;
       hair += `<path d="${path}" fill="${hc}" ${S}/><path d="M58,22 Q70,14 84,22" fill="none" stroke="#fff" stroke-opacity="${ssj ? .55 : .22}" stroke-width="3" stroke-linecap="round"/>`;
@@ -124,7 +129,7 @@ const ART = (() => {
     if (has('cape') && !has('turban') && p.hair !== 'none') front += `<path d="M42,70 L52,66 L52,82 L42,84Z M98,70 L88,66 L88,82 L98,84Z" fill="${top}" ${S}/>`;
     if (has('turban') || (has('cape') && p.hair === 'none')) front += `<path d="M38,68 L56,66 L54,86 L40,84Z M102,68 L84,66 L86,86 L100,84Z" fill="#f4f4f4" ${S}/>`;
 
-    return `<svg class="fsvg${ssj ? ' is-ssj' : ''}" viewBox="0 -26 140 226" aria-hidden="true">
+    return `<svg class="fsvg${F ? ' is-form' : ''}" viewBox="0 -26 140 226" aria-hidden="true">
       <g transform="translate(70 190) scale(${sx} ${sy}) translate(-70 -190)"><g class="bob">
       ${back}${legs}${torso}${beltEl}${arms}${front}${head}${hair}</g></g></svg>`;
   }

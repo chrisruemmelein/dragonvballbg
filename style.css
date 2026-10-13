@@ -225,3 +225,12 @@ button.chip{cursor:pointer}
 @media (max-height:700px){.hero{width:84px}.logo{font-size:44px}.tb{min-height:50px;padding:5px 8px}.spr.player{--w:27%}.spr.enemy{--w:24%}}
 @media (prefers-reduced-motion:reduce){.btn.big-btn,.node.boss,.tb.ready{animation:none}}
 .scroll>*{flex-shrink:0}
+
+.sec{font-family:var(--disp);font-weight:400;font-size:21px;letter-spacing:1px;color:var(--org2);margin:6px 0 -2px;text-shadow:0 2px 0 #000}
+.items{flex-wrap:wrap}.items .ib{flex:1 1 30%;min-width:96px}
+.ctrl .ib[data-a=skip]{background:#6a2a1a}
+.spr.formed .aura-el{opacity:.75;width:155%;animation-duration:.8s}
+.spr.formed .fig{filter:drop-shadow(0 0 7px var(--ac))}
+.spr.formed[data-fs=kk] .fig{filter:sepia(.35) saturate(2.2) hue-rotate(-25deg) drop-shadow(0 0 9px #ff2a2a)}
+.spr.formed[data-fs=mui] .fig{filter:brightness(1.25) drop-shadow(0 0 12px #fff)}
+.spr.formed[data-fs=ssj3] .aura-el{width:180%;height:110%}

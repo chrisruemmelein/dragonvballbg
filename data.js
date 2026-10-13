@@ -121,10 +121,9 @@ const TECH = {
   combo:        { n: 'Kombo-Angriff', i: '👊', cost: 20, cd: 5, r: 'r', combo: 6, fx: 'combo', col: '#ffb347', d: 'Die nächsten 6 Standardangriffe machen ×2,2 Schaden' },
   bigbang:      { n: 'Big Bang Attack', i: '🔴', cost: 45, cd: 3, r: 'r', mult: 2, burn: 5, fx: 'sphere', col: '#ff6a3d', d: '200% Schaden + Verbrennung (5s)' },
   destructo:    { n: 'Destructo-Scheibe', i: '🔪', cost: 35, cd: 2, r: 'r', mult: 3, pierce: true, lock: 'destructo', fx: 'disc', col: '#ffd83a', d: '300% Schaden, ignoriert Rüstung' },
-  ssj:          { n: 'Super Saiyajin', i: '👱', cost: 60, cd: 20, r: 'e', buff: 12, lock: 'ssj', fx: 'ssj', col: '#ffe14a', d: '12s: +60% Angriff, +15% Tempo, +50% Ki-Regeneration' },
+  form:         { n: 'Transformation', i: '⚡', cost: 50, cd: 24, r: 'e', form: true, lock: 'form', fx: 'form', col: '#ffe14a', d: 'Verwandlung: wird mit jedem Aufstieg stärker (Kaio-Ken → Super Saiyajin → … → Ultra Instinct)' },
   genkidama:    { n: 'Genkidama', i: '🔵', cost: 90, cd: 8, r: 'e', mult: 8, lock: 'genkidama', fx: 'sphere', col: '#8fd8ff', d: 'Die ultimative Kugel: 800% Schaden' },
   finalflash:   { n: 'Final Flash', i: '🟡', cost: 75, cd: 5, r: 'e', mult: 6.5, lock: 'finalflash', fx: 'beam', col: '#ffd05a', d: 'Gleißender Strahl: 650% Schaden' },
-  ui:           { n: 'Ultra Instinct', i: '🪽', cost: 70, cd: 25, r: 'e', ui: 10, lock: 'ui', fx: 'ssj', col: '#d6e4ff', d: '10s: weicht 55% der Angriffe aus, +30% Angriff, +20% Tempo' },
   hakai:        { n: 'Hakai', i: '🟪', cost: 60, cd: 12, r: 'e', hakai: .25, lock: 'hakai', fx: 'sphere', col: '#a06bff', d: 'Zerstört 25% der aktuellen LP des Gegners (Bosse 12%) + 100% Schaden' },
 };
 
@@ -148,7 +147,6 @@ const PASS = {
   absorb:  { n: 'Ki-Absorption', i: '🧲', r: 'r', m: { kiOnHurt: 5 }, d: 'Jeder erlittene Treffer gibt +5 Ki' },
   finisher:{ n: 'Henker', i: '☠️', r: 'r', m: { execute: .5 }, d: '+50% Schaden gegen Gegner unter 30% LP' },
   gravity: { n: 'Schwerkraftkammer', i: '🪐', r: 'r', m: { atkPct: .22, spdPct: -.05 }, d: '+22% Angriff, −5% Tempo' },
-  kaioken: { n: 'Kaio-Ken', i: '🔴', r: 'e', m: { atkPct: .4, taken: .15 }, lock: 'kaioken', d: '+40% Angriff, aber +15% erlittener Schaden' },
 };
 
 /* ---------- Relikte: nur als Boss-Belohnung ---------- */
@@ -163,10 +161,18 @@ const RELIC = {
 };
 
 const ITEMS = {
-  senzu:   { n: 'Senzu-Bohne', i: '🫘', r: 'c', d: 'Heilt 60% der Max-LP (im Kampf nutzbar)' },
-  kicap:   { n: 'Ki-Kapsel', i: '🔋', r: 'c', d: 'Füllt das Ki komplett auf (im Kampf nutzbar)' },
-  granate: { n: 'Ki-Granate', i: '💣', r: 'c', d: 'Verursacht 400% Schaden, ignoriert Rüstung' },
+  senzu:   { n: 'Senzu-Bohne', i: '🫘', r: 'c', d: 'Heilt 60% der Max-LP' },
+  kicap:   { n: 'Ki-Kapsel', i: '🔋', r: 'c', d: 'Füllt das Ki komplett auf' },
+  granate: { n: 'Ki-Granate', i: '💣', r: 'c', d: '400% Schaden, ignoriert Rüstung' },
+  blitz:   { n: 'Blitzkapsel', i: '💡', r: 'c', d: 'Blendet den Gegner 5s (Bosse 3s)' },
+  stun:    { n: 'Betäubungskapsel', i: '💫', r: 'c', d: 'Betäubt den Gegner 4s (Bosse 2s), stoppt Aufladungen' },
+  schild:  { n: 'Schildkapsel', i: '🛡️', r: 'r', d: 'Schild über 40% Max-LP für 10s' },
+  pille:   { n: 'Berserker-Pille', i: '💊', r: 'r', d: '15s lang +60% Angriff' },
+  zeit:    { n: 'Zeitkapsel', i: '⏳', r: 'r', d: 'Setzt alle Abklingzeiten zurück, +40 Ki' },
+  elixier: { n: 'Elixier', i: '🧪', r: 'r', d: 'Heilt komplett (100% Max-LP)' },
+  bombe:   { n: 'Mega-Ki-Bombe', i: '☄️', r: 'r', d: '900% Schaden, ignoriert Rüstung' },
 };
+
 
 /* ---------- Training (Meta) ---------- */
 const META = [
@@ -180,12 +186,11 @@ const META = [
   { id: 'pick',  n: 'Kampfanalyse', i: '🧠', d: '+1 Auswahl bei Belohnungen', max: 1, cost: () => 250 },
   { id: 'revive', n: 'Shenlongs Gnade', i: '🐉', d: 'Wiederbelebung 1× pro Run mit 40% LP', max: 1, cost: () => 300 },
   { id: 'unlock_destructo', n: 'Destructo-Scheibe', i: '🔪', d: 'Schaltet die Technik in Belohnungen frei', max: 1, cost: () => 80, unlock: true },
-  { id: 'unlock_kaioken',   n: 'Kaio-Ken', i: '🔴', d: 'Schaltet den Boost in Belohnungen frei', max: 1, cost: () => 120, unlock: true },
-  { id: 'unlock_ssj',       n: 'Super Saiyajin', i: '👱', d: 'Schaltet die Verwandlung in Belohnungen frei', max: 1, cost: () => 160, unlock: true },
+  { id: 'unlock_form',      n: 'Transformation', i: '⚡', d: 'Schaltet Kaio-Ken, Super Saiyajin … bis Ultra Instinct frei (in Belohnungen & Shop aufwertbar)', max: 1, cost: () => 150, unlock: true },
+  { id: 'startform', n: 'Start-Form', i: '🔥', d: 'Starte jeden Run mit höherer Transformationsstufe (braucht „Transformation“)', max: 9, cost: l => 90 + l * 80, needs: 'unlock_form' },
   { id: 'unlock_genkidama', n: 'Genkidama', i: '🔵', d: 'Schaltet die ultimative Technik frei', max: 1, cost: () => 220, unlock: true },
   { id: 'unlock_finalflash', n: 'Final Flash', i: '🟡', d: 'Schaltet Vegetas Strahl frei', max: 1, cost: () => 260, unlock: true },
   { id: 'unlock_hakai',     n: 'Hakai', i: '🟪', d: 'Schaltet die Zerstörung frei', max: 1, cost: () => 320, unlock: true },
-  { id: 'unlock_ui',        n: 'Ultra Instinct', i: '🪽', d: 'Schaltet die höchste Stufe frei', max: 1, cost: () => 420, unlock: true },
 ];
 
 const WISHES = {
@@ -206,3 +211,20 @@ const NODE_INFO = {
 const GRAV_MAX = 10;
 const gravInfo = g => g === 0 ? 'Normal' : `Gegner +${g * 22}% LP, +${g * 14}% Schaden · Zenkai +${g * 35}%`
   + (g >= 2 ? ' · mehr Elite-Kämpfe' : '') + (g >= 3 ? ' · Shop +20%' : '') + (g >= 4 ? ' · keine Heilung nach Kämpfen' : '') + (g >= 6 ? ' · alle Gegner mit Eigenschaft' : '');
+
+
+/* ---------- Transformations-Leiter: ein Item, unendlich aufwertbar ---------- */
+const FORM_MAX = 11;
+const FORMS = [null,
+  { n: 'Kaio-Ken ×2',  ico: '🔴', hair: null, eye: null, aura: '#ff4a3d', atk: .30, spd: .10, regen: 0, taken: 0, drain: .010, dodge: 0, crit: 0, style: 'kk' },
+  { n: 'Kaio-Ken ×4',  ico: '🔴', hair: null, eye: null, aura: '#ff3a2d', atk: .45, spd: .15, regen: 0, taken: 0, drain: .013, dodge: 0, crit: 0, style: 'kk' },
+  { n: 'Kaio-Ken ×10', ico: '🔴', hair: null, eye: null, aura: '#ff2a2a', atk: .80, spd: .25, regen: 0, taken: 0, drain: .020, dodge: 0, crit: 0, style: 'kk' },
+  { n: 'Super Saiyajin',   ico: '👱', hair: '#ffe14a', eye: '#27e0c4', aura: '#ffe14a', atk: .60, spd: .15, regen: .50, taken: 0, dodge: 0, crit: 0, style: 'ssj' },
+  { n: 'Super Saiyajin 2', ico: '⚡', hair: '#ffe94a', eye: '#27e0c4', aura: '#fff06a', atk: .85, spd: .20, regen: .60, taken: 0, dodge: 0, crit: 0, style: 'ssj2' },
+  { n: 'Super Saiyajin 3', ico: '🦁', hair: '#ffd21a', eye: '#27e0c4', aura: '#ffd21a', atk: 1.20, spd: .25, regen: .70, taken: 0, dodge: 0, crit: 0, kidrain: 2.5, style: 'ssj3' },
+  { n: 'Super Saiyajin God',  ico: '🔥', hair: '#ff3b4a', eye: '#ff8a96', aura: '#ff4a5e', atk: 1.10, spd: .30, regen: .80, taken: -.15, dodge: 0, crit: 0, style: 'ssj' },
+  { n: 'Super Saiyajin Blue', ico: '💠', hair: '#38b6ff', eye: '#8fe0ff', aura: '#38b6ff', atk: 1.50, spd: .35, regen: 1.0, taken: -.20, dodge: 0, crit: .10, style: 'ssj2' },
+  { n: 'Blue Kaio-Ken ×20',   ico: '🌌', hair: '#38b6ff', eye: '#ff6aa0', aura: '#ff3d8a', atk: 2.30, spd: .45, regen: 1.0, taken: -.20, drain: .015, dodge: 0, crit: .10, style: 'ssj2' },
+  { n: 'Ultra Instinct (Zeichen)',    ico: '🪽', hair: '#cfd9ea', eye: '#e8f2ff', aura: '#cfe0ff', atk: 1.70, spd: .50, regen: .5, taken: -.25, dodge: .35, crit: 0, style: 'ssj' },
+  { n: 'Ultra Instinct (gemeistert)', ico: '🪽', hair: '#f4f8ff', eye: '#ffffff', aura: '#ffffff', atk: 2.60, spd: .60, regen: .5, taken: -.30, dodge: .60, crit: .15, style: 'mui' },
+];

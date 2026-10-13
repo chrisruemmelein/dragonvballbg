@@ -8,7 +8,8 @@ const ri = (a, b) => Math.floor(rnd(a, b + 1));
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const SAVE_KEY = 'zenkai_quest_v1';
-const RUN_VER = 2;
+const RUN_VER = 3;
+const MAX_ITEMS = 5;
 let VIS = true; // false = keine Optik (für Tests)
 
 /* ---------- Spielstand ---------- */
@@ -23,6 +24,7 @@ function loadSave() {
     const d = Object.assign(defSave(), s);
     d.set = Object.assign(defSave().set, d.set);
     if (d.run && d.run.v !== RUN_VER) d.run = null; // alte Run-Struktur verwerfen
+    if (d.meta && (d.meta.unlock_ssj || d.meta.unlock_kaioken || d.meta.unlock_ui)) d.meta.unlock_form = 1; // alte Freischaltungen -> Transformation
     return d;
   } catch (e) { return defSave(); }
 }
@@ -41,6 +43,28 @@ const bossAt = f => isBossFloor(f) ? actOf(f).boss : null;
 const sagaOpen = id => !SAGAS[id].req || (SAVE.sagaWins[SAGAS[id].req] || 0) > 0;
 const curSaga = () => sagaOpen(SAVE.saga) ? SAVE.saga : 'saiyan';
 const meta = id => SAVE.meta[id] || 0;
+const NOFORM = { atk: 0, spd: 0, regen: 0, taken: 0, dodge: 0, crit: 0, drain: 0, kidrain: 0 };
+const formLv = () => { const t = run.techs.find(t => t.id === 'form'); return t ? t.lv : 0; };
+const formDur = l => Math.round(12 + Math.min(l, FORM_MAX) * .8);
+function formAt(l) {
+  const f = FORMS[Math.min(l, FORM_MAX)], x = l > FORM_MAX ? 1 + .12 * (l - FORM_MAX) : 1;
+  return Object.assign({}, NOFORM, f, { atk: f.atk * x, spd: f.spd * x, regen: f.regen * x, crit: f.crit * x, dodge: Math.min(.8, f.dodge * x) });
+}
+function formDesc(l) {
+  const f = formAt(l), pc = v => Math.round(v * 100), p = [];
+  p.push('+' + pc(f.atk) + '% Angriff', '+' + pc(f.spd) + '% Tempo');
+  if (f.regen) p.push('+' + pc(f.regen) + '% Ki-Regen');
+  if (f.taken) p.push(pc(f.taken) + '% erlittener Schaden');
+  if (f.dodge) p.push(pc(f.dodge) + '% Ausweichen');
+  if (f.crit) p.push('+' + pc(f.crit) + '% Krit');
+  if (f.drain) p.push('−' + (f.drain * 100).toFixed(1).replace('.0', '') + '% LP/s');
+  if (f.kidrain) p.push('−' + f.kidrain + ' Ki/s');
+  return p.join(' · ') + ' · ' + formDur(l) + 's';
+}
+const formName = l => FORMS[Math.min(l, FORM_MAX)].n + (l > FORM_MAX ? ' +' + (l - FORM_MAX) : '');
+const tName = t => t.id === 'form' ? formName(t.lv) : TECH[t.id].n + (t.lv > 1 ? ' ★' + t.lv : '');
+const tIcon = t => t.id === 'form' ? FORMS[Math.min(t.lv, FORM_MAX)].ico : TECH[t.id].i;
+const tDesc = t => t.id === 'form' ? formDesc(t.lv) : TECH[t.id].d;
 
 /* ---------- Audio (winzig, WebAudio) ---------- */
 let AC = null;
@@ -74,6 +98,7 @@ function stats() {
   A.hpPct += meta('hp') * .10 + (SAVE.wish.power || 0) * .1;
   A.regenPct += meta('regen') * .08 + (SAVE.wish.ki || 0) * .15;
   A.crit += meta('crit') * .02;
+  A.def += run.bonusDef || 0; A.hpFlat += run.bonusHp || 0;
   return {
     maxHp: Math.round((c.hp + A.hpFlat) * (1 + A.hpPct)),
     atk: (c.atk + run.bonusAtk) * (1 + A.atkPct),
@@ -88,9 +113,10 @@ function stats() {
 function newRun() {
   const id = SAVE.sel, saga = curSaga(), grav = clamp(SAVE.grav, 0, SAVE.gravMax);
   run = { v: RUN_VER, char: id, saga, grav, floor: 1, hp: 1, gold: 20 + meta('gold') * 30,
-          techs: CHARS[id].start.map(t => ({ id: t, lv: 1 })), pass: [], relics: [], items: [], bonusAtk: 0, balls: 0, kills: 0, bosses: 0,
+          techs: CHARS[id].start.map(t => ({ id: t, lv: 1 })), pass: [], relics: [], items: [], bonusAtk: 0, bonusDef: 0, bonusHp: 0, buys: {}, balls: 0, kills: 0, bosses: 0,
           revived: false, endless: false, won: false, screen: 'map', opts: null, node: null, reward: null, shop: null, event: null };
   for (let i = 0; i < meta('senzu') + 1; i++) run.items.push('senzu');
+  if (meta('unlock_form') && meta('startform') > 0) run.techs.push({ id: 'form', lv: meta('startform') });
   run.hp = stats().maxHp;
   SAVE.run = run; SAVE.runs++;
   run.opts = genNodes();
@@ -171,6 +197,7 @@ function enterNode(i) {
 
 /* ---------- Karten / Belohnungen ---------- */
 function cardInfo(c) {
+  if (c.kind === 'tech' && c.id === 'form') { const nl = formLv() + 1; return { i: FORMS[Math.min(nl, FORM_MAX)].ico, n: formName(nl), d: 'Nächste Form: ' + formDesc(nl), cost: TECH.form.cost }; }
   return c.kind === 'tech' ? TECH[c.id] : c.kind === 'pass' ? PASS[c.id] : c.kind === 'relic' ? RELIC[c.id] : ITEMS[c.id];
 }
 function cardPool(minRar) {
@@ -181,7 +208,7 @@ function cardPool(minRar) {
     if (run.pass.filter(x => x === id).length >= 4) continue;
     out.push({ kind: 'pass', id, r: p.r });
   }
-  for (const id in ITEMS) out.push({ kind: 'item', id, r: 'c' });
+  for (const id in ITEMS) out.push({ kind: 'item', id, r: ITEMS[id].r });
   return out.filter(c => !(minRar === 'r' && c.r === 'c'));
 }
 function genCards(n, minRar) {
@@ -213,8 +240,8 @@ function giveCard(c, ignoreFull) {
   } else if (c.kind === 'pass') run.pass.push(c.id);
   else if (c.kind === 'relic') {
     run.relics.push(c.id);
-    if (RELIC[c.id].onGet === 'senzu2') for (let i = 0; i < 2; i++) if (run.items.length < 4) run.items.push('senzu');
-  } else if (c.kind === 'item') { if (run.items.length < 4) run.items.push(c.id); else addGold(25); }
+    if (RELIC[c.id].onGet === 'senzu2') for (let i = 0; i < 2; i++) if (run.items.length < MAX_ITEMS) run.items.push('senzu');
+  } else if (c.kind === 'item') { if (run.items.length < MAX_ITEMS) run.items.push(c.id); else addGold(25); }
   const after = stats().maxHp;
   if (after > before) run.hp += after - before;
   return 'ok';
@@ -227,10 +254,27 @@ function pickReward(i) {
 }
 function finishReward() { run.reward = null; nextFloor(); }
 
+const shopMul = () => run.grav >= 3 ? 1.2 : 1;
+function shopCards() {
+  const f = run.floor, m = shopMul();
+  return genCards(3).map(c => ({ k: 'card', card: c, price: Math.round(({ c: 40, r: 75, e: 130 }[c.r]) * (1 + f * .06) * m), sold: false }));
+}
+function shopItems() {
+  const f = run.floor, m = shopMul(), ids = Object.keys(ITEMS), out = [];
+  for (let i = 0; i < 3; i++) { const id = pick(ids); out.push({ k: 'item', id, price: Math.round(({ c: 28, r: 62 }[ITEMS[id].r]) * (1 + f * .04) * m), sold: false }); }
+  return out;
+}
+function shopPerm() {
+  const m = shopMul(), b = run.buys;
+  return [{ k: 'heal', price: Math.round(45 * m) }, { k: 'train', price: Math.round((70 + 20 * (b.train || 0)) * m) },
+          { k: 'armor', price: Math.round((80 + 25 * (b.armor || 0)) * m) }, { k: 'vit', price: Math.round((90 + 25 * (b.vit || 0)) * m) }];
+}
 function genShop() {
-  const f = run.floor, m = run.grav >= 3 ? 1.2 : 1;
-  const cards = genCards(3).map(c => ({ k: 'card', card: c, price: Math.round(({ c: 40, r: 75, e: 130 }[c.r]) * (1 + f * .06) * m), sold: false }));
-  return { items: [...cards, { k: 'senzu', price: Math.round(35 * m) }, { k: 'heal', price: Math.round(45 * m) }, { k: 'train', price: Math.round(70 * m), sold: false }] };
+  const f = run.floor, m = shopMul(), special = [];
+  const rel = genRelics(1);
+  if (rel.length && Math.random() < .55) special.push({ k: 'relic', card: rel[0], price: Math.round(260 * (1 + f * .04) * m), sold: false });
+  if (meta('unlock_form')) special.push({ k: 'form', card: { kind: 'tech', id: 'form', r: 'e' }, price: Math.round((110 + formLv() * 45) * m), sold: false });
+  return { cards: shopCards(), items: shopItems(), special, perm: shopPerm(), rerolls: 0 };
 }
 
 /* ---------- Ereignisse ---------- */
@@ -254,7 +298,7 @@ function eventPick(k) {
   const ev = run.event; if (ev.res) return;
   const s = stats(); let msg = '';
   switch (ev.id + k) {
-    case 'karina': if (run.items.length < 4) run.items.push('senzu'); else addGold(30); msg = '🫘 Du erhältst eine Senzu-Bohne!'; break;
+    case 'karina': if (run.items.length < MAX_ITEMS) run.items.push('senzu'); else addGold(30); msg = '🫘 Du erhältst eine Senzu-Bohne!'; break;
     case 'karinb': run.bonusAtk += 2; run.hp = Math.max(1, run.hp - s.maxHp * .1); msg = '💪 +2 Angriff!'; break;
     case 'wrecka':
       if (Math.random() < .3) { run.hp = Math.max(1, run.hp - s.maxHp * .15); msg = '💣 Eine Falle! −15% LP.'; }
@@ -272,7 +316,7 @@ function eventPick(k) {
       else { run.hp = Math.max(1, run.hp - s.maxHp * .15); msg = '💥 Ein Hinterhalt! −15% LP.'; }
       break;
     case 'radarb': msg = 'Du ziehst weiter.'; break;
-    case 'popoa': if (run.items.length < 4) run.items.push('kicap'); else addGold(30); msg = '🔋 Du erhältst eine Ki-Kapsel.'; break;
+    case 'popoa': if (run.items.length < MAX_ITEMS) run.items.push('kicap'); else addGold(30); msg = '🔋 Du erhältst eine Ki-Kapsel.'; break;
     case 'popob': run.bonusAtk += 3; run.hp = Math.max(1, run.hp - s.maxHp * .15); msg = '💪 +3 Angriff!'; break;
     case 'tourneya':
       if (Math.random() < .6) { const g = ri(70, 120) + run.floor * 5; addGold(g); msg = `🏆 Du gewinnst ${g} Gold!`; }
@@ -290,7 +334,7 @@ function findBall() {
 /* ---------- Kampf ---------- */
 function startBattle() {
   const n = run.node, e = makeEnemy(run.floor, n.type), S = stats();
-  B = { e, S, ehp: e.hp, eMax: e.hp, pT: 0, eT: e.int * .5, ki: S.maxKi * .5, cd: {}, buff: { ssj: 0, dodge: 0, ui: 0 },
+  B = { e, S, ehp: e.hp, eMax: e.hp, pT: 0, eT: e.int * .5, ki: S.maxKi * .5, cd: {}, buff: { dodge: 0, pill: 0 }, form: null,
         intro: e.boss ? 1.9 : e.type === 'elite' ? 1.2 : .9, stun: 0, blind: 0, shield: 0, shieldT: 0, burn: null, combo: 0, charge: null, queue: [], timers: [],
         eCount: 0, over: false, nextCrit: false, enraged: 0, auto: SAVE.set.auto, fast: SAVE.set.fast, autoT: 0, time: 0 };
   go('battle-ui');
@@ -319,10 +363,18 @@ function tick(dt) {
   if (B.intro > 0) { B.intro -= dt; return; }
   const s = B.S, e = B.e;
   B.time += dt;
-  B.ki = Math.min(s.maxKi, B.ki + s.regen * (B.buff.ssj > 0 ? 1.5 : 1) * dt);
+  if (B.time > 75 && !B.late) { B.late = true; vis.banner('⏰ Der Kampf zieht sich – der Gegner wird wütend!', '#ff9a3d', 1800); }
+  if (B.form) {
+    B.form.t -= dt;
+    if (B.form.drain) run.hp = Math.max(1, run.hp - s.maxHp * B.form.drain * dt);
+    if (B.form.kidrain) { B.ki -= B.form.kidrain * dt; if (B.ki <= 0) { B.ki = 0; B.form.t = 0; } }
+    if (B.form.t <= 0) B.form = null;
+  }
+  const F = B.form || NOFORM;
+  B.ki = Math.min(s.maxKi, B.ki + s.regen * (1 + F.regen) * dt);
   if (s.hpRegen) heal(s.hpRegen * dt);
   for (const k in B.cd) B.cd[k] = Math.max(0, B.cd[k] - dt);
-  B.buff.ssj = Math.max(0, B.buff.ssj - dt); B.buff.dodge = Math.max(0, B.buff.dodge - dt); B.buff.ui = Math.max(0, B.buff.ui - dt);
+  B.buff.dodge = Math.max(0, B.buff.dodge - dt); B.buff.pill = Math.max(0, B.buff.pill - dt);
   B.blind = Math.max(0, B.blind - dt);
   if (B.shieldT > 0) { B.shieldT -= dt; if (B.shieldT <= 0) B.shield = 0; }
   if (e.traits.regen) B.ehp = Math.min(B.eMax, B.ehp + B.eMax * .01 * dt);
@@ -338,7 +390,7 @@ function tick(dt) {
   if (B.ehp <= 0) return winBattle();
 
   // Spieler-Standardangriff
-  B.pT += dt * s.spd * (B.buff.ssj > 0 ? 1.15 : 1) * (B.buff.ui > 0 ? 1.2 : 1);
+  B.pT += dt * s.spd * (1 + F.spd);
   if (B.pT >= 1) {
     B.pT -= 1; let m = 1;
     if (B.combo > 0) { m = 2.2; B.combo--; }
@@ -377,11 +429,12 @@ function dealDamage(mult, o = {}) {
   const s = B.S;
   let atk = s.atk;
   if (run.char === 'gohan') atk *= 1 + (1 - run.hp / s.maxHp) * .7;
-  if (B.buff.ssj > 0) atk *= 1.6;
-  if (B.buff.ui > 0) atk *= 1.3;
+  const F = B.form || NOFORM;
+  atk *= 1 + F.atk;
+  if (B.buff.pill > 0) atk *= 1.6;
   if (s.lowHpAtk && run.hp < s.maxHp * .5) atk *= 1 + s.lowHpAtk;
   if (s.execute && B.ehp < B.eMax * .3) atk *= 1 + s.execute;
-  let crit = Math.random() < s.crit;
+  let crit = Math.random() < s.crit + F.crit;
   if (B.nextCrit) { crit = true; B.nextCrit = false; }
   let d = atk * mult * (crit ? s.critDmg : 1);
   if (!o.pierce) d /= (1 + B.e.def * .06);
@@ -397,8 +450,10 @@ function dealDamage(mult, o = {}) {
 function enemyHit(mult, heavy) {
   const s = B.S, e = B.e;
   if (B.blind > 0) { floatText('Verfehlt!', 'p', 'miss'); return; }
-  if (B.buff.dodge > 0 || (B.buff.ui > 0 && Math.random() < .55)) { floatText('Ausgewichen!', 'p', 'miss'); vis.dodge(); return; }
-  let d = e.atk * mult * rnd(.9, 1.1) / (1 + s.def * .06) * s.taken;
+  const F = B.form || NOFORM;
+  if (B.buff.dodge > 0 || (F.dodge && Math.random() < F.dodge)) { floatText('Ausgewichen!', 'p', 'miss'); vis.dodge(); return; }
+  let d = e.atk * mult * rnd(.9, 1.1) / (1 + s.def * .06) * s.taken * (1 + F.taken);
+  if (B.time > 75) d *= 1 + (B.time - 75) / 25;
   d = Math.max(1, Math.round(d));
   const total = d;
   if (B.shield > 0) { const ab = Math.min(B.shield, d); B.shield -= ab; d -= ab; floatText('🛡️' + Math.round(ab), 'p', 'heal'); }
@@ -428,8 +483,7 @@ function useTech(i) {
   };
   if (T.dodge) { B.buff.dodge = T.dodge; B.nextCrit = true; }
   if (T.heal) { heal(s.maxHp * T.heal * lvm); floatText('+' + Math.round(s.maxHp * T.heal * lvm), 'p', 'heal'); sfx('heal'); }
-  if (T.buff) B.buff.ssj = T.buff * (1 + (t.lv - 1) * .25);
-  if (T.ui) B.buff.ui = T.ui * (1 + (t.lv - 1) * .25);
+  if (T.form) B.form = Object.assign({}, formAt(t.lv), { lv: t.lv, t: formDur(t.lv) });
   if (T.blind) B.blind = B.e.boss ? T.blind * .6 : T.blind;
   if (T.shield) { B.shield = s.maxHp * T.shield * lvm; B.shieldT = 8; }
   if (T.combo) B.combo = T.combo;
@@ -451,27 +505,46 @@ function dodgeCharge() {
 function useItem(i) {
   if (!B || B.over) return;
   const id = run.items[i]; if (!id) return;
-  const s = B.S;
+  const s = B.S, e = B.e;
+  const boom = (mult, col) => { vis.tech({ fx: 'sphere', col }, { lv: 1 }); later(.5, () => { dealDamage(mult, { pierce: true }); if (B.ehp <= 0) winBattle(); }); };
   if (id === 'senzu') { if (run.hp >= s.maxHp) return; heal(s.maxHp * .6); floatText('+' + Math.round(s.maxHp * .6), 'p', 'heal'); sfx('heal'); vis.healFx(); }
-  if (id === 'kicap') { if (B.ki >= s.maxKi - 5) return; B.ki = s.maxKi; sfx('heal'); vis.healFx('#8fd8ff'); }
-  if (id === 'granate') { vis.tech({ fx: 'sphere', col: '#ffb347' }, { lv: 1 }); later(.5, () => { dealDamage(4, { pierce: true }); if (B.ehp <= 0) winBattle(); }); }
+  else if (id === 'elixier') { if (run.hp >= s.maxHp) return; floatText('+' + Math.round(s.maxHp - run.hp), 'p', 'heal'); run.hp = s.maxHp; sfx('heal'); vis.healFx('#9fffd0'); }
+  else if (id === 'kicap') { if (B.ki >= s.maxKi - 5) return; B.ki = s.maxKi; sfx('heal'); vis.healFx('#8fd8ff'); }
+  else if (id === 'zeit') { B.cd = {}; B.ki = Math.min(s.maxKi, B.ki + 40); sfx('power'); vis.healFx('#ffe14a'); vis.banner('⏳ ZEITKAPSEL!', '#ffe14a', 800); }
+  else if (id === 'granate') boom(4, '#ffb347');
+  else if (id === 'bombe') boom(9, '#ff5a3d');
+  else if (id === 'blitz') { B.blind = Math.max(B.blind, e.boss ? 3 : 5); vis.tech({ fx: 'flash', col: '#fff' }, { lv: 1 }); }
+  else if (id === 'stun') { B.stun = Math.max(B.stun, e.boss ? 2 : 4); B.charge = null; B.eT = 0; vis.tech({ fx: 'ring', col: '#fff' }, { lv: 1 }); }
+  else if (id === 'schild') { B.shield = s.maxHp * .4; B.shieldT = 10; vis.tech({ fx: 'shield', col: '#7fe0ff' }, { lv: 1 }); }
+  else if (id === 'pille') { B.buff.pill = 15; vis.healFx('#ff6a3d'); vis.banner('💊 BERSERKER!', '#ff6a3d', 800); }
   run.items.splice(i, 1);
+}
+
+/* Kampf sofort zu Ende rechnen (Auto-Modus, ohne Animation) */
+function skipBattle() {
+  if (!B || B.over) return;
+  const wasVis = VIS; VIS = false;
+  B.intro = 0; B.auto = true; let t = 0;
+  while (B && !B.over && t < 900) { tick(.1); t += .1; }
+  if (B && !B.over) { run.hp = 0; playerDown(); }
+  VIS = wasVis;
+  if (wasVis) toast('⏭ Kampf berechnet');
 }
 
 function autoPlay() {
   const s = B.S, has = id => run.techs.findIndex(t => t.id === id);
   const ready = i => i >= 0 && (B.cd[run.techs[i].id] || 0) <= 0 && B.ki >= TECH[run.techs[i].id].cost;
   if (B.charge && !B.charge.dodged) {
-    for (const id of ['kiai', 'taiyoken', 'teleport', 'ui']) { const i = has(id); if (ready(i)) return useTech(i); }
+    for (const id of ['kiai', 'taiyoken', 'teleport']) { const i = has(id); if (ready(i)) return useTech(i); }
     if (B.ki >= DODGE_COST) return dodgeCharge();
   }
   if (run.hp < s.maxHp * .45) { const i = has('heal'); if (ready(i)) return useTech(i); }
   if (run.hp < s.maxHp * .65 && B.shield <= 0) { const i = has('kishield'); if (ready(i)) return useTech(i); }
   if (SAVE.set.autoSenzu && run.hp < s.maxHp * .3) { const i = run.items.indexOf('senzu'); if (i >= 0) return useItem(i); }
-  for (const id of ['ssj', 'ui']) { const i = has(id); if (i >= 0 && B.buff[id] <= 0 && ready(i)) return useTech(i); }
+  { const i = has('form'); if (i >= 0 && !B.form && ready(i) && (B.e.boss || B.e.type === 'elite' || B.eMax > B.S.atk * 18)) return useTech(i); }
   const ci = has('combo'); if (ci >= 0 && B.combo <= 0 && ready(ci)) return useTech(ci);
   const pi = has('powerup'); if (pi >= 0 && B.ki < s.maxKi * .3 && ready(pi)) return useTech(pi);
-  const skip = ['kiai', 'taiyoken', 'teleport', 'heal', 'kishield', 'ssj', 'ui', 'combo', 'powerup'];
+  const skip = ['kiai', 'taiyoken', 'teleport', 'heal', 'kishield', 'form', 'combo', 'powerup'];
   const order = run.techs.map((t, i) => i).filter(i => !skip.includes(run.techs[i].id))
     .sort((a, b) => TECH[run.techs[b].id].cost - TECH[run.techs[a].id].cost);
   for (const i of order) if (ready(i)) return useTech(i);
@@ -491,7 +564,11 @@ function winBattle() {
   let ball = false;
   if (SAVE.balls < 7 && Math.random() < ballChance) { findBall(); ball = true; }
   const n = 3 + meta('pick');
-  const cards = e.type === 'boss' ? [...genRelics(2), ...genCards(n - 1, 'r')].slice(0, n + 1) : genCards(n);
+  let cards = e.type === 'boss' ? [...genRelics(2), ...genCards(n - 2, 'r')] : genCards(n);
+  if (meta('unlock_form') && (e.type === 'boss' || (e.type === 'elite' && Math.random() < .4))) {
+    cards = cards.filter(c => !(c.kind === 'tech' && c.id === 'form'));
+    cards.splice(e.type === 'boss' ? 2 : 0, 0, { kind: 'tech', id: 'form', r: 'e' });
+  }
   run.reward = { cards, gold, ball, boss: e.type === 'boss' };
   run.screen = 'reward'; save();
   vis.ko();
@@ -555,6 +632,22 @@ const vis = {
     const p = this.pt('e', .5, .5); FX.burst(p.x, p.y, '#ffe14a', 40, 480, 7, .9, 260); FX.ring(p.x, p.y, '#fff', 200, .6, 12); FX.flash('#fff', .55, .4); this.shake(true); sfx('boom');
   },
   koPlayer() { if (!VIS) return; const e = $('#playerSpr'); if (e) e.classList.add('ko'); const p = this.pt('p', .5, .5); FX.burst(p.x, p.y, '#ff5a5a', 30, 380, 6, .8, 260); },
+  formUp(lv) {
+    if (!VIS) return; const f = formAt(lv), col = f.aura, big = f.style === 'ssj3' || f.style === 'mui' || lv >= 9;
+    this.banner('⚡ ' + formName(lv).toUpperCase() + '!', col, big ? 1900 : 1500, f.style === 'kk' ? 'Kraft um jeden Preis' : '');
+    FX.flash(col, big ? .95 : .8, big ? .8 : .55);
+    const p = this.pt('p', .5, .5);
+    FX.ring(p.x, p.y, col, big ? 300 : 220, .7, 14);
+    if (big) setTimeout(() => FX.ring(p.x, p.y, '#ffffff', 360, .8, 10), 200);
+    FX.bolt(p.x, p.y, col, f.style === 'kk' ? 4 : big ? 14 : 8, 90);
+    FX.burst(p.x, p.y, col, 40, 420, 6, .8, 0);
+    this.anim('#playerSpr', 'pose-charge', 900); this.shake(true); sfx('power');
+  },
+  setForm(f) {
+    const P = $('#playerSpr'), fig = $('#pFig'), au = $('#pAura'); if (!P || !fig) return;
+    if (f) { fig.innerHTML = ART.fighter(CHARS[run.char].p, { form: f }); P.classList.add('formed'); P.dataset.fs = f.style; au.style.setProperty('--ac', f.aura); }
+    else { fig.innerHTML = ART.fighter(CHARS[run.char].p); P.classList.remove('formed'); delete P.dataset.fs; au.style.setProperty('--ac', CHARS[run.char].ac); }
+  },
   /* liefert die Verzögerung bis zum Einschlag zurück */
   tech(T, t) {
     if (!VIS) return 0;
@@ -581,14 +674,7 @@ const vis = {
         if (big) { this.banner(T.hakai ? '🟪 HAKAI!' : '🔵 GENKIDAMA!', col, 1300); }
         return big ? 1.4 : .85;
       }
-      case 'ssj': {
-        const isUi = !!T.ui;
-        this.banner(isUi ? '🪽 ULTRA INSTINCT!' : '⚡ SUPER SAIYAJIN!', col, 1500);
-        FX.flash(col, .85, .6); const p = this.pt('p', .5, .5); FX.ring(p.x, p.y, col, 220, .7, 14); FX.bolt(p.x, p.y, col, 8, 90);
-        this.anim('#playerSpr', 'pose-charge', 900); this.shake(true); sfx('power');
-        const fig = $('#pFig'); if (fig && !isUi) fig.innerHTML = ART.fighter(CHARS[run.char].p, { ssj: true });
-        return 0;
-      }
+      case 'form': this.formUp(t.lv); return 0;
     }
     return 0;
   },
@@ -636,7 +722,7 @@ function actBanner() {
 function cardHtml(c, extra = '', attrs = '', cls = '') {
   const I = cardInfo(c), lvTxt = c.kind === 'tech' ? ` · ${TECH[c.id].cost} Ki` : '';
   const have = c.kind === 'tech' ? run.techs.find(t => t.id === c.id) : null;
-  const up = have ? ` <span style="color:var(--grn)">▲ Stufe ${have.lv + 1}</span>` : '';
+  const up = have ? (c.id === 'form' ? ' <span style="color:var(--grn)">▲ AUFSTIEG</span>' : ` <span style="color:var(--grn)">▲ Stufe ${have.lv + 1}</span>`) : '';
   const kind = { tech: 'TECHNIK', pass: 'PASSIV', item: 'ITEM', relic: 'RELIKT' }[c.kind];
   const cnt = c.kind === 'pass' ? run.pass.filter(x => x === c.id).length : 0;
   return `<button class="card ${c.r} ${cls}" ${attrs}><span class="ic">${I.i}</span><span><span class="tag">${c.r === 'l' ? '' : RAR[c.r] + ' · '}${kind}${lvTxt}</span>
@@ -665,7 +751,7 @@ const SCREENS = {
       <button class="btn big-btn" data-a="start">${SAVE.run ? '⚔️ Neuer Run (verwirft den alten)' : '⚔️ RUN STARTEN'}</button>
       <div class="row"><button class="btn sec" data-a="metaScr">🏋️ Training</button><button class="btn sec" data-a="chars">🥋 Kämpfer</button></div>
       ${SAVE.balls >= 7 ? '<button class="btn red" data-a="wish">🐉 SHENLONG RUFEN! (7/7)</button>' : `<div class="panel small mut" style="width:100%">${ballsRow(SAVE.balls, 26)}<br>Dragonbälle (${SAVE.balls}/7) findest du in Elite-Kämpfen, bei Bossen und in Ereignissen. Sie bleiben nach dem Tod erhalten!</div>`}
-      <div class="panel small mut" style="width:100%;text-align:left"><b style="color:var(--txt)">So geht's:</b><br>Der Kampf läuft automatisch. Setze <b>Techniken</b> (Ki) im richtigen Moment ein und baue zwischen den Kämpfen deinen <b>Build</b>. Bei <b>⚠️ Aufladung</b> tippst du die rote Warnung an, um auszuweichen (25 Ki) – oder unterbrichst mit Kiai. Gegner haben <b>Eigenschaften</b> – lies sie! Stirbst du, bekommst du ⭐ Zenkai und wirst dauerhaft stärker. Schaffst du eine Saga, wird die <b>Schwerkraft</b> erhöht.</div>
+      <div class="panel small mut" style="width:100%;text-align:left"><b style="color:var(--txt)">So geht's:</b><br>Der Kampf läuft automatisch. Setze <b>Techniken</b> (Ki) im richtigen Moment ein und baue zwischen den Kämpfen deinen <b>Build</b>. Bei <b>⚠️ Aufladung</b> tippst du die rote Warnung an, um auszuweichen (25 Ki) – oder unterbrichst mit Kiai. Mit <b>⏭ Ende</b> rechnest du einen Kampf sofort zu Ende. Gegner haben <b>Eigenschaften</b> – lies sie! Stirbst du, bekommst du ⭐ Zenkai und wirst dauerhaft stärker. Schaffst du eine Saga, wird die <b>Schwerkraft</b> erhöht.</div>
       <div class="row" style="width:100%"><button class="btn sec" data-a="settings">⚙️ Einstellungen</button><button class="btn sec" data-a="reset">🗑️ Reset</button></div>
     </div>`);
   },
@@ -685,7 +771,7 @@ const SCREENS = {
     const e = B.e, ch = CHARS[run.char], act = actOf(run.floor);
     const tag = e.boss ? '<span class="tg boss">BOSS</span>' : e.type === 'elite' ? '<span class="tg elite">ELITE</span>' : '';
     view(`<div class="battle">
-      <div class="ctrl"><button class="ib ${B.auto ? 'on' : ''}" id="autoB" data-a="auto" style="flex:1">🤖 Auto: ${B.auto ? 'AN' : 'AUS'}</button><button class="ib ${B.fast ? 'on' : ''}" id="fastB" data-a="fast">⏩ x${B.fast ? 2 : 1}</button></div>
+      <div class="ctrl"><button class="ib ${B.auto ? 'on' : ''}" id="autoB" data-a="auto" style="flex:1">🤖 Auto ${B.auto ? 'AN' : 'AUS'}</button><button class="ib ${B.fast ? 'on' : ''}" id="fastB" data-a="fast">⏩ x${B.fast ? 2 : 1}</button><button class="ib" data-a="skip" title="Kampf sofort zu Ende rechnen">⏭ Ende</button></div>
       <div class="arena" id="arena">
         <div class="bgl">${ART.bg(act.bg)}</div>
         <div class="spr enemy" id="enemySpr" style="--sz:${e.size}"><div class="aura-el"></div><div class="fig">${ART.fighter(e.p)}</div></div>
@@ -719,22 +805,28 @@ const SCREENS = {
     </div>`);
   },
   shop() {
+    const sh = run.shop, ok = it => run.gold >= it.price && !it.sold;
+    const price = it => `<span class="price">${it.sold ? 'VERKAUFT' : it.price + ' 🪙'}</span>`;
+    const cls = it => (ok(it) ? '' : 'off ') + (it.sold ? 'sold' : '');
+    const sec = (t, arr, name) => arr.length ? `<h3 class="sec">${t}</h3>` + arr.map((it, i) => {
+      const at = `data-a="buy" data-s="${name}" data-i="${i}"`;
+      if (it.k === 'card' || it.k === 'relic' || it.k === 'form') return cardHtml(it.card, price(it), at, cls(it));
+      if (it.k === 'item') return cardHtml({ kind: 'item', id: it.id, r: ITEMS[it.id].r }, price(it), at, cls(it));
+      const info = { heal: ['🍖', 'Festmahl', 'Heilt sofort 40% LP'], train: ['🏋️', 'Privattraining', '+3 Angriff (nur im Run)'], armor: ['🦺', 'Panzerplatten', '+3 Rüstung (nur im Run)'], vit: ['💗', 'Vitamin-Kur', '+30 Max-LP (nur im Run)'] }[it.k];
+      return `<button class="card c ${cls(it)}" ${at}><span class="ic">${info[0]}</span><span><b>${info[1]}</b><span class="d">${info[2]}</span></span>${price(it)}</button>`;
+    }).join('') : '';
+    const rr = 25 + 20 * sh.rerolls;
     view(`${hud()}<div class="scroll"><h2 class="center">🛒 Bulmas Shop</h2>
-      ${run.shop.items.map((it, i) => {
-        const afford = run.gold >= it.price && !it.sold;
-        const price = `<span class="price">${it.sold ? 'VERKAUFT' : it.price + ' 🪙'}</span>`;
-        if (it.k === 'card') return cardHtml(it.card, price, `data-a="buy" data-i="${i}"`, (afford ? '' : 'off ') + (it.sold ? 'sold' : ''));
-        const info = { senzu: ['🫘', 'Senzu-Bohne', 'Item: heilt 60% LP im Kampf'], heal: ['🍖', 'Festmahl', 'Heilt sofort 40% LP'], train: ['🏋️', 'Privattraining', '+3 Angriff dauerhaft (nur im Run)'] }[it.k];
-        return `<button class="card ${afford ? '' : 'off'} ${it.sold ? 'sold' : ''}" data-a="buy" data-i="${i}"><span class="ic">${info[0]}</span><span><b>${info[1]}</b><span class="d">${info[2]}</span></span>${price}</button>`;
-      }).join('')}
-      <button class="btn" data-a="leave" style="margin-top:6px">Weiter ➜</button></div>`);
+      ${sec('✨ Spezial', sh.special, 'special')}${sec('⚔️ Ausrüstung', sh.cards, 'cards')}${sec('🎒 Items', sh.items, 'items')}${sec('💪 Training & Verpflegung', sh.perm, 'perm')}
+      <button class="btn sec" data-a="reroll" ${run.gold < rr ? 'disabled' : ''}>🔄 Sortiment erneuern (${rr} 🪙)</button>
+      <button class="btn" data-a="leave" style="margin-top:2px">Weiter ➜</button></div>`);
   },
   rest() {
     const s = stats();
     view(`${hud()}<div class="scroll center"><div class="big">🏕️</div><h2>Rastplatz</h2><p class="mut">Ruhe dich aus oder trainiere.</p>
       <button class="btn grn" data-a="restHeal">💚 Ausruhen: +45% LP (${Math.round(s.maxHp * .45)})</button>
       <button class="btn" data-a="restTrain">💪 Trainieren: +2 Angriff dauerhaft</button>
-      <button class="btn sec" data-a="restItem" ${run.items.length >= 4 ? 'disabled' : ''}>🔋 Ki-Kapsel basteln (Item)</button></div>`);
+      <button class="btn sec" data-a="restItem" ${run.items.length >= MAX_ITEMS ? 'disabled' : ''}>🔋 Ki-Kapsel basteln (Item)</button></div>`);
   },
   event() {
     const ev = run.event, E = EVENTS[ev.id];
@@ -769,7 +861,7 @@ const SCREENS = {
       ${META.map(m => {
         const l = meta(m.id), maxed = l >= m.max, c = m.cost(l);
         return `<div class="meta"><span class="ic">${m.i}</span><span class="tx"><b>${m.n} ${m.max > 1 ? `<span class="lvl">Stufe ${l}/${m.max}</span>` : (l ? '<span class="lvl">✔ FREIGESCHALTET</span>' : '')}</b><span class="small mut">${m.d}</span></span>
-        <button class="btn ${maxed ? 'sec' : ''}" data-a="buyMeta" data-id="${m.id}" ${maxed || SAVE.zenkai < c ? 'disabled' : ''}>${maxed ? 'MAX' : c + ' ⭐'}</button></div>`;
+        <button class="btn ${maxed ? 'sec' : ''}" data-a="buyMeta" data-id="${m.id}" ${maxed || SAVE.zenkai < c || (m.needs && !meta(m.needs)) ? 'disabled' : ''}>${maxed ? 'MAX' : (m.needs && !meta(m.needs)) ? '🔒' : c + ' ⭐'}</button></div>`;
       }).join('')}</div>`);
   },
   chars() {
@@ -825,8 +917,8 @@ function updateBattleUI() {
     w.classList.toggle('ok', !!d);
   }
   const bl = [];
-  if (B.buff.ssj > 0) bl.push('👱 SSJ ' + Math.ceil(B.buff.ssj) + 's');
-  if (B.buff.ui > 0) bl.push('🪽 UI ' + Math.ceil(B.buff.ui) + 's');
+  if (B.form) bl.push(FORMS[Math.min(B.form.lv, FORM_MAX)].ico + ' ' + formName(B.form.lv) + ' ' + Math.ceil(B.form.t) + 's');
+  if (B.buff.pill > 0) bl.push('💊 ' + Math.ceil(B.buff.pill) + 's');
   if (B.buff.dodge > 0) bl.push('⚡ ' + B.buff.dodge.toFixed(1) + 's');
   if (B.combo > 0) bl.push('👊 ×' + B.combo);
   if (B.blind > 0) bl.push('🌞 blind');
@@ -834,12 +926,15 @@ function updateBattleUI() {
   if (B.burn) bl.push('🔥 brennt');
   $('#buffs').textContent = bl.join(' · ');
   const P = $('#playerSpr'), En = $('#enemySpr');
-  P.classList.toggle('ssj', B.buff.ssj > 0); P.classList.toggle('ui', B.buff.ui > 0); P.classList.toggle('shielded', B.shield > 0);
+  P.classList.toggle('shielded', B.shield > 0);
   En.classList.toggle('charging', !!B.charge); En.classList.toggle('stunned', B.stun > 0); En.classList.toggle('blind', B.blind > 0);
-  if (B.buff.ssj <= 0 && B.ssjShown) { B.ssjShown = false; $('#pFig').innerHTML = ART.fighter(CHARS[run.char].p); }
-  if (B.buff.ssj > 0) B.ssjShown = true;
-  // Dauer-Effekte (Aura, Aufladung)
-  if (B.buff.ssj > 0 || B.buff.ui > 0) { const p = FX.pos(P, .5, .6); FX.aura(p.x, p.y, B.buff.ui > 0 ? '#d6e4ff' : '#ffe14a', 38, 90, 1); if (Math.random() < .04) FX.bolt(p.x, p.y, '#ffe14a', 1, 50); }
+  const fl = B.form ? B.form.lv : 0;
+  if (fl !== (B.formShown || 0)) { B.formShown = fl; vis.setForm(B.form); }
+  if (B.form) {
+    const p = FX.pos(P, .5, .6), st = B.form.style, big = st === 'ssj3' || st === 'mui';
+    FX.aura(p.x, p.y, B.form.aura, 38, 90, big ? 2 : 1);
+    if (Math.random() < ({ kk: .03, ssj: .03, ssj2: .09, ssj3: .1, mui: .12 }[st] || .03)) FX.bolt(p.x, p.y, B.form.aura, 1, 55);
+  }
   if (B.charge) { const p = FX.pos(En, .5, .5); FX.converge(p.x, p.y, '#ff4a5e', 1, 80); }
   // Techniken
   const tc = $('#techs');
@@ -848,7 +943,7 @@ function updateBattleUI() {
       const t = run.techs[i];
       if (!t) return '<button class="tb empty">–</button>';
       const T = TECH[t.id];
-      return `<button class="tb" data-a="tech" data-i="${i}"><span class="ic">${T.i}</span><span><b>${T.n}${t.lv > 1 ? ' ★' + t.lv : ''}</b><small>${T.cost} Ki</small></span><span class="cdo"></span></button>`;
+      return `<button class="tb" data-a="tech" data-i="${i}"><span class="ic">${tIcon(t)}</span><span><b>${tName(t)}</b><small>${T.cost} Ki</small></span><span class="cdo"></span></button>`;
     }).join('');
     const ic = $('#items');
     ic.innerHTML = run.items.length ? run.items.map((id, i) => `<button class="ib" data-a="item" data-i="${i}">${ITEMS[id].i} ${ITEMS[id].n}</button>`).join('') : '<span class="small mut" style="flex:1;text-align:center">Keine Items</span>';
@@ -869,7 +964,7 @@ function showBuild() {
   modal(`<h3>🎒 Dein Build</h3>
     <div class="panel small">❤️ ${s.maxHp} LP · 💪 ${s.atk.toFixed(1)} Angriff · 🛡️ ${s.def} Rüstung · 🌀 ${s.regen.toFixed(1)} Ki/s<br>🎯 ${Math.round(s.crit * 100)}% Krit (×${s.critDmg.toFixed(2)}) · ⚡ ${Math.round(s.spd * 100)}% Tempo</div>
     <b>Techniken (${run.techs.length}/${MAX_TECHS})</b>
-    ${run.techs.map(t => `<div class="meta"><span class="ic">${TECH[t.id].i}</span><span class="tx"><b>${TECH[t.id].n} <span class="lvl">Stufe ${t.lv}</span></b><span class="small mut">${TECH[t.id].d}</span></span></div>`).join('')}
+    ${run.techs.map(t => `<div class="meta"><span class="ic">${tIcon(t)}</span><span class="tx"><b>${t.id === 'form' ? formName(t.lv) : TECH[t.id].n} <span class="lvl">${t.id === 'form' ? 'Form-Stufe ' + t.lv : 'Stufe ' + t.lv}</span></b><span class="small mut">${tDesc(t)}</span></span></div>`).join('')}
     ${run.relics.length ? '<b>Relikte</b>' + run.relics.map(id => `<div class="meta"><span class="ic">${RELIC[id].i}</span><span class="tx"><b>${RELIC[id].n}</b><span class="small mut">${RELIC[id].d}</span></span></div>`).join('') : ''}
     <b>Passive</b>
     ${run.pass.length ? Object.entries(run.pass.reduce((a, x) => (a[x] = (a[x] || 0) + 1, a), {})).map(([id, n]) => `<div class="meta"><span class="ic">${PASS[id].i}</span><span class="tx"><b>${PASS[id].n} ×${n}</b><span class="small mut">${PASS[id].d}</span></span></div>`).join('') : '<span class="mut small">Noch keine</span>'}
@@ -879,7 +974,7 @@ function showReplace(card, done) {
   const I = cardInfo(card);
   window.__replaceDone = done; window.__replaceCard = card;
   modal(`<h3>Technik-Slots voll!</h3><p class="mut small">Welche Technik ersetzt du durch ${I.i} <b>${I.n}</b>?</p>
-    ${run.techs.map((t, i) => `<button class="card c" data-a="replace" data-i="${i}"><span class="ic">${TECH[t.id].i}</span><span><b>${TECH[t.id].n} (Stufe ${t.lv})</b><span class="d">${TECH[t.id].d}</span></span></button>`).join('')}
+    ${run.techs.map((t, i) => `<button class="card c" data-a="replace" data-i="${i}"><span class="ic">${tIcon(t)}</span><span><b>${t.id === 'form' ? formName(t.lv) : TECH[t.id].n + ' (Stufe ' + t.lv + ')'}</b><span class="d">${tDesc(t)}</span></span></button>`).join('')}
     <button class="btn sec" data-a="closeModal">Abbrechen</button>`);
 }
 
@@ -897,33 +992,43 @@ const ACT = {
   reset() { if (confirm('Wirklich ALLES zurücksetzen (Zenkai, Freischaltungen, Run)?')) { SAVE = defSave(); save(); go('menu'); } },
   node(d) { enterNode(+d.i); },
   tech(d) { useTech(+d.i); },
+  skip() { skipBattle(); },
   dodge() { dodgeCharge(); },
   item(d) { useItem(+d.i); },
-  auto() { B.auto = !B.auto; SAVE.set.auto = B.auto; save(); $('#autoB').textContent = '🤖 Auto: ' + (B.auto ? 'AN' : 'AUS'); $('#autoB').classList.toggle('on', B.auto); },
+  auto() { B.auto = !B.auto; SAVE.set.auto = B.auto; save(); $('#autoB').textContent = '🤖 Auto ' + (B.auto ? 'AN' : 'AUS'); $('#autoB').classList.toggle('on', B.auto); },
   fast() { B.fast = !B.fast; SAVE.set.fast = B.fast; save(); $('#fastB').textContent = '⏩ x' + (B.fast ? 2 : 1); $('#fastB').classList.toggle('on', B.fast); },
   reward(d) { pickReward(+d.i); },
   skipReward() { addGold(25); finishReward(); },
   buy(d) {
-    const it = run.shop.items[+d.i]; if (it.sold || run.gold < it.price) return sfx('hurt');
+    const it = run.shop[d.s] && run.shop[d.s][+d.i]; if (!it || it.sold || run.gold < it.price) return sfx('hurt');
     const s = stats();
-    if (it.k === 'card') { const r = giveCard(it.card); if (r === 'full') { return showReplace(it.card, () => { addGold(-it.price); it.sold = true; save(); go('shop'); }); } }
-    else if (it.k === 'senzu') { if (run.items.length >= 4) return toast('Item-Slots voll'); run.items.push('senzu'); }
-    else if (it.k === 'heal') heal(s.maxHp * .4);
+    const done = () => {
+      addGold(-it.price); sfx('win');
+      if (['heal', 'train', 'armor', 'vit'].includes(it.k)) { run.buys[it.k] = (run.buys[it.k] || 0) + 1; run.shop.perm = shopPerm(); } else it.sold = true;
+      save(); go('shop');
+    };
+    if (it.k === 'card' || it.k === 'relic' || it.k === 'form') { if (giveCard(it.card) === 'full') return showReplace(it.card, done); return done(); }
+    if (it.k === 'item') { if (run.items.length >= MAX_ITEMS) return toast('Item-Slots voll'); run.items.push(it.id); return done(); }
+    if (it.k === 'heal') heal(s.maxHp * .4);
     else if (it.k === 'train') run.bonusAtk += 3;
-    addGold(-it.price); sfx('win');
-    if (it.k === 'card' || it.k === 'train') it.sold = true;
-    save(); go('shop');
+    else if (it.k === 'armor') run.bonusDef += 3;
+    else if (it.k === 'vit') { const b = s.maxHp; run.bonusHp += 30; run.hp += stats().maxHp - b; }
+    done();
+  },
+  reroll() {
+    const c = 25 + 20 * run.shop.rerolls; if (run.gold < c) return;
+    addGold(-c); run.shop.rerolls++; run.shop.cards = shopCards(); run.shop.items = shopItems(); sfx('ui'); save(); go('shop');
   },
   leave() { nextFloor(); },
   restHeal() { heal(stats().maxHp * .45); nextFloor(); },
   restTrain() { run.bonusAtk += 2; nextFloor(); },
-  restItem() { if (run.items.length < 4) { run.items.push('kicap'); nextFloor(); } },
+  restItem() { if (run.items.length < MAX_ITEMS) { run.items.push('kicap'); nextFloor(); } },
   ev(d) { eventPick(d.k); },
   endless() { run.endless = true; run.opts = null; nextFloor(); },
   finish() { endRun(true); },
   buyMeta(d) {
     const m = META.find(x => x.id === d.id), l = meta(m.id), c = m.cost(l);
-    if (l >= m.max || SAVE.zenkai < c) return;
+    if (l >= m.max || SAVE.zenkai < c || (m.needs && !meta(m.needs))) return;
     SAVE.zenkai -= c; SAVE.meta[m.id] = l + 1; save(); sfx('win'); go('meta');
   },
   selChar(d) { SAVE.sel = d.id; save(); go('chars'); },
