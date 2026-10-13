@@ -129,8 +129,8 @@ function makeEnemy(f, type) {
   let id = pick(act.pool), nT = 0;
   if (f >= 4 && Math.random() < .55) nT = 1;
   if (g >= 6) nT = Math.max(nT, 1);
-  if (f >= 8) chargeEvery = 5;
-  if (type === 'elite') { id = pick(act.elite); hp *= 1.9; atk *= 1.3; int = 1.6; chargeEvery = 4; nT = 2; }
+  if (f >= 6) chargeEvery = 4;
+  if (type === 'elite') { id = pick(act.elite); hp *= 1.9; atk *= 1.3; int = 1.6; chargeEvery = 3; nT = 2; }
   if (type === 'boss') { id = act.boss; hp *= 2.5; atk *= 1.3; int = 1.5; chargeEvery = 3; boss = true; def *= 1.1; nT = 0; }
   const d = ENEMY[id];
   let tr = [];
@@ -437,7 +437,7 @@ function useTech(i) {
   if (T.mult || T.hakai || T.stun || T.burn) { if (delay > 0) later(delay, hit); else hit(); }
 }
 
-const DODGE_COST = 15;
+const DODGE_COST = 25;
 function counterHint() {
   const names = { kiai: 'Kiai', taiyoken: 'Solar Flare', teleport: 'Instant Transmission' };
   return run.techs.map(t => names[t.id]).filter(Boolean).join(' / ');
@@ -665,7 +665,7 @@ const SCREENS = {
       <button class="btn big-btn" data-a="start">${SAVE.run ? '⚔️ Neuer Run (verwirft den alten)' : '⚔️ RUN STARTEN'}</button>
       <div class="row"><button class="btn sec" data-a="metaScr">🏋️ Training</button><button class="btn sec" data-a="chars">🥋 Kämpfer</button></div>
       ${SAVE.balls >= 7 ? '<button class="btn red" data-a="wish">🐉 SHENLONG RUFEN! (7/7)</button>' : `<div class="panel small mut" style="width:100%">${ballsRow(SAVE.balls, 26)}<br>Dragonbälle (${SAVE.balls}/7) findest du in Elite-Kämpfen, bei Bossen und in Ereignissen. Sie bleiben nach dem Tod erhalten!</div>`}
-      <div class="panel small mut" style="width:100%;text-align:left"><b style="color:var(--txt)">So geht's:</b><br>Der Kampf läuft automatisch. Setze <b>Techniken</b> (Ki) im richtigen Moment ein und baue zwischen den Kämpfen deinen <b>Build</b>. Bei <b>⚠️ Aufladung</b> tippst du die rote Warnung an, um auszuweichen (15 Ki) – oder unterbrichst mit Kiai. Gegner haben <b>Eigenschaften</b> – lies sie! Stirbst du, bekommst du ⭐ Zenkai und wirst dauerhaft stärker. Schaffst du eine Saga, wird die <b>Schwerkraft</b> erhöht.</div>
+      <div class="panel small mut" style="width:100%;text-align:left"><b style="color:var(--txt)">So geht's:</b><br>Der Kampf läuft automatisch. Setze <b>Techniken</b> (Ki) im richtigen Moment ein und baue zwischen den Kämpfen deinen <b>Build</b>. Bei <b>⚠️ Aufladung</b> tippst du die rote Warnung an, um auszuweichen (25 Ki) – oder unterbrichst mit Kiai. Gegner haben <b>Eigenschaften</b> – lies sie! Stirbst du, bekommst du ⭐ Zenkai und wirst dauerhaft stärker. Schaffst du eine Saga, wird die <b>Schwerkraft</b> erhöht.</div>
       <div class="row" style="width:100%"><button class="btn sec" data-a="settings">⚙️ Einstellungen</button><button class="btn sec" data-a="reset">🗑️ Reset</button></div>
     </div>`);
   },
@@ -693,7 +693,7 @@ const SCREENS = {
         <canvas id="fxc"></canvas>
         <div class="eplate"><div class="en">${tag}<span>${e.n}</span><small>Etage ${run.floor}</small></div>
           <div class="bar hp e"><i id="eHp"></i><span id="eHpT"></span></div><div class="tcs">${traitChips(e)}</div></div>
-        <button class="warn" id="warn" data-a="dodge" hidden><span id="warnT">⚠️ AUFLADUNG!</span><small id="warnS">Tippen = Ausweichen (15 Ki)</small><div class="bar"><i id="warnB"></i></div></button>
+        <button class="warn" id="warn" data-a="dodge" hidden><span id="warnT">⚠️ AUFLADUNG!</span><small id="warnS">Tippen = Ausweichen (25 Ki)</small><div class="bar"><i id="warnB"></i></div></button>
         <div class="banner" id="banner"></div>
       </div>
       <div class="fighter pl"><div class="nm">${ch.n} <span class="bufflist" id="buffs"></span></div>
