@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<rect width="512" height="512" fill="#0b1020"/>
+<circle cx="256" cy="256" r="170" fill="#ff9a1f"/>
+<circle cx="256" cy="256" r="150" fill="#ffb84d"/>
+<g fill="#c0392b" stroke="#7a1d12" stroke-width="6">
+<path d="M256 150l17 36 40 5-29 28 7 40-35-19-35 19 7-40-29-28 40-5z"/>
+</g>
+<text x="256" y="400" font-family="Arial Black,Arial" font-size="64" font-weight="900" text-anchor="middle" fill="#0b1020">ZQ</text>
+</svg>
