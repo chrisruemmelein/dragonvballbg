@@ -9,7 +9,13 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const SAVE_KEY = 'zenkai_quest_v1';
 const MAX_FLOOR = 10;
-const BOSS_FLOORS = { 5: 'vegeta', 10: 'freezer' };
+const SAGAS = {
+  saiyan: { n: 'Saiyajin- & Freezer-Saga', i: '🌍', d: 'Der Einstieg: Raditz, Vegeta, Freezer.', bosses: { 5: 'vegeta', 10: 'freezer' }, off: 0, zmul: 1,
+            a1: 'act1', a2: 'act2', e1: 'elite1', e2: 'elite2', win: 'Du hast Freezer bezwungen und den Planeten gerettet!' },
+  cell:   { n: 'Cell-Saga', i: '🪲', d: 'Härter: Androiden und Cell. Schaltet sich nach dem ersten Sieg frei.', bosses: { 5: 'android18', 10: 'cell' }, off: 4, zmul: 1.6,
+            a1: 'act3', a2: 'act4', e1: 'elite3', e2: 'elite4', win: 'Perfect Cell ist besiegt – die Erde ist sicher!' },
+};
+const bossAt = f => SAGAS[run.saga].bosses[f];
 const MAX_TECHS = 4;
 
 /* ---------- Spielstand ---------- */
@@ -114,6 +120,12 @@ const ENEMIES = {
   act2: [ { n: 'Dodoria', e: '🐷' }, { n: 'Zarbon', e: '🧝' }, { n: 'Recoome', e: '🦍' }, { n: 'Guldo', e: '🐸' }, { n: 'Burter', e: '🦎' } ],
   elite1: [ { n: 'Nappa', e: '🗿' } ],
   elite2: [ { n: 'Captain Ginyu', e: '🦹' }, { n: 'Cell Jr.', e: '🪲' } ],
+  act3: [ { n: 'Android 19', e: '🤖' }, { n: 'Dr. Gero', e: '🧓' }, { n: 'Cell Jr.', e: '🪲' }, { n: 'Android 16', e: '🦾' } ],
+  act4: [ { n: 'Android 17', e: '🧢' }, { n: 'Semi-Perfect Cell', e: '🦟' }, { n: 'Cell Jr. (Elite)', e: '👾' }, { n: 'Cooler-Klon', e: '🛰️' } ],
+  elite3: [ { n: 'Android 17', e: '🧢' }, { n: 'Android 16', e: '🦾' } ],
+  elite4: [ { n: 'Super Perfect Cell', e: '🦂' }, { n: 'Cell Jr. Anführer', e: '👹' } ],
+  android18: { n: 'Android 18', e: '🧑‍🦰' },
+  cell: { n: 'Perfect Cell', e: '🦗' },
   vegeta: { n: 'Vegeta', e: '👑' },
   freezer: { n: 'Freezer', e: '👽' },
 };
@@ -180,9 +192,10 @@ function stats() {
   };
 }
 
+function sagaSel() { return SAGAS[SAVE.saga] && (SAVE.saga === 'saiyan' || SAVE.wins > 0) ? SAVE.saga : 'saiyan'; }
 function newRun() {
   const id = SAVE.sel;
-  run = { char: id, floor: 1, hp: 1, gold: 20 + meta('gold') * 30, techs: CHARS[id].start.map(t => ({ id: t, lv: 1 })),
+  run = { char: id, saga: sagaSel(), floor: 1, hp: 1, gold: 20 + meta('gold') * 30, techs: CHARS[id].start.map(t => ({ id: t, lv: 1 })),
           pass: [], items: [], bonusAtk: 0, balls: 0, kills: 0, bosses: 0, revived: false,
           screen: 'map', opts: null, node: null, reward: null, shop: null, event: null };
   for (let i = 0; i < meta('senzu') + 1; i++) run.items.push('senzu');
@@ -194,7 +207,7 @@ function newRun() {
 
 function genNodes() {
   const f = run.floor;
-  if (BOSS_FLOORS[f]) return [{ type: 'boss' }];
+  if (bossAt(f)) return [{ type: 'boss' }];
   if (f === 1) return [{ type: 'battle' }, { type: 'battle' }];
   const pool = [['battle', 45], ['elite', f >= 3 ? 16 : 0], ['shop', 13], ['rest', 14], ['event', 14]];
   const out = [];
@@ -208,16 +221,17 @@ function genNodes() {
     if (!out.includes(t)) out.push(t);
   }
   // Vor dem Boss immer eine Verschnaufpause anbieten
-  if (BOSS_FLOORS[f + 1] && !out.some(t => t === 'rest' || t === 'shop')) out[1] = pick(['rest', 'shop']);
+  if (bossAt(f + 1) && !out.some(t => t === 'rest' || t === 'shop')) out[1] = pick(['rest', 'shop']);
   return out.map(type => ({ type }));
 }
 
 function makeEnemy(f, type) {
-  const sc = Math.pow(1.26, f - 1);
-  let hp = 44 * sc, atk = 5.5 * Math.pow(1.21, f - 1), int = 1.7, def = f * .8, chargeEvery = 0, boss = false;
-  let who = f <= 4 ? pick(ENEMIES.act1) : pick(ENEMIES.act2);
-  if (type === 'elite') { who = f <= 5 ? pick(ENEMIES.elite1) : pick(ENEMIES.elite2); hp *= 1.9; atk *= 1.3; int = 1.6; chargeEvery = 4; }
-  if (type === 'boss') { who = ENEMIES[BOSS_FLOORS[f]]; hp *= 2.7; atk *= 1.3; int = 1.5; chargeEvery = 3; boss = true; def *= 1.1; }
+  const sf = f + SAGAS[run.saga].off, sc = Math.pow(1.26, sf - 1);
+  let hp = 44 * sc, atk = 5.5 * Math.pow(1.21, sf - 1), int = 1.7, def = sf * .8, chargeEvery = 0, boss = false;
+  const sg = SAGAS[run.saga];
+  let who = f <= 4 ? pick(ENEMIES[sg.a1]) : pick(ENEMIES[sg.a2]);
+  if (type === 'elite') { who = f <= 5 ? pick(ENEMIES[sg.e1]) : pick(ENEMIES[sg.e2]); hp *= 1.9; atk *= 1.3; int = 1.6; chargeEvery = 4; }
+  if (type === 'boss') { who = ENEMIES[bossAt(f)]; hp *= 2.7; atk *= 1.3; int = 1.5; chargeEvery = 3; boss = true; def *= 1.1; }
   return { n: who.n, e: who.e, hp: Math.round(hp), atk, int, def, chargeEvery, boss, type };
 }
 
@@ -495,11 +509,11 @@ function playerDown() {
 function endRun(victory) {
   const cleared = victory ? MAX_FLOOR : run.floor - 1;
   let z = cleared * 6 + run.bosses * 25 + (victory ? 100 : 0) + Math.floor(run.kills * 1.5);
-  z = Math.round(z * (1 + meta('zgain') * .1));
-  const prevBest = SAVE.best;
+  z = Math.round(z * (1 + meta('zgain') * .1) * SAGAS[run.saga].zmul);
+  const prevBest = SAVE.best, winTxt = SAGAS[run.saga].win;
   SAVE.zenkai += z; SAVE.best = Math.max(SAVE.best, victory ? MAX_FLOOR : run.floor);
   if (victory) SAVE.wins++;
-  const summary = { victory, floor: victory ? MAX_FLOOR : run.floor, z, kills: run.kills, bosses: run.bosses, balls: run.balls, gold: run.gold, newBest: SAVE.best > prevBest };
+  const summary = { victory, winTxt, floor: victory ? MAX_FLOOR : run.floor, z, kills: run.kills, bosses: run.bosses, balls: run.balls, gold: run.gold, newBest: SAVE.best > prevBest };
   SAVE.run = null; run = null; B = null; save();
   go('end', summary);
 }
@@ -533,7 +547,7 @@ function hud() {
 }
 function pathBar() {
   let h = '<div class="path">';
-  for (let f = 1; f <= MAX_FLOOR; f++) h += `<i class="${f < run.floor ? 'done' : f === run.floor ? 'cur' : ''} ${BOSS_FLOORS[f] ? 'boss' : ''}"></i>`;
+  for (let f = 1; f <= MAX_FLOOR; f++) h += `<i class="${f < run.floor ? 'done' : f === run.floor ? 'cur' : ''} ${bossAt(f) ? 'boss' : ''}"></i>`;
   return h + '</div>';
 }
 function cardHtml(c, extra = '', attrs = '', cls = '') {
@@ -557,6 +571,8 @@ const SCREENS = {
       <div class="panel" style="width:100%;display:flex;gap:12px;align-items:center">
         <div class="aura" style="--ac:${ch.ac};width:64px;height:64px">${avatar(SAVE.sel)}</div>
         <div style="text-align:left"><b>${ch.n}</b><div class="small mut">${ch.d}</div></div></div>
+      <div class="row">${Object.keys(SAGAS).map(id => { const g = SAGAS[id], ok = id === 'saiyan' || SAVE.wins > 0; return `<button class="btn ${sagaSel() === id ? '' : 'sec'}" data-a="saga" data-id="${id}" ${ok ? '' : 'disabled'}>${ok ? g.i : '🔒'} ${g.n.split(' ')[0].replace('Saiyajin-', 'Saiyajin')}</button>`; }).join('')}</div>
+      <div class="small mut" style="margin-top:-4px">${SAGAS[sagaSel()].d}</div>
       ${SAVE.run ? '<button class="btn grn" data-a="resume">▶ Run fortsetzen (Etage ' + SAVE.run.floor + ')</button>' : ''}
       <button class="btn" data-a="start">${SAVE.run ? '⚔️ Neuer Run (verwirft den alten)' : '⚔️ Run starten'}</button>
       <div class="row"><button class="btn sec" data-a="metaScr">🏋️ Training</button><button class="btn sec" data-a="chars">🥋 Kämpfer</button></div>
@@ -567,10 +583,10 @@ const SCREENS = {
   },
   map() {
     view(`${hud()}${pathBar()}<div class="scroll">
-      <h2 class="center">Etage ${run.floor}${BOSS_FLOORS[run.floor] ? ' – BOSS' : ''}</h2>
+      <h2 class="center">Etage ${run.floor}${bossAt(run.floor) ? ' – BOSS' : ''}</h2>
       <p class="mut center small">Wähle deinen Weg</p>
       ${run.opts.map((n, i) => {
-        const inf = n.type === 'boss' ? { i: ENEMIES[BOSS_FLOORS[run.floor]].e, n: 'Boss: ' + ENEMIES[BOSS_FLOORS[run.floor]].n, d: 'Zeit für die Entscheidung!' } : NODE_INFO[n.type];
+        const inf = n.type === 'boss' ? { i: ENEMIES[bossAt(run.floor)].e, n: 'Boss: ' + ENEMIES[bossAt(run.floor)].n, d: 'Zeit für die Entscheidung!' } : NODE_INFO[n.type];
         return `<button class="node ${n.type}" data-a="node" data-i="${i}"><span class="ic">${inf.i}</span><span><b>${inf.n}</b><span class="mut small">${inf.d}</span></span></button>`;
       }).join('')}
       <button class="btn sec" data-a="menu" style="margin-top:auto">⬅ Hauptmenü (Run bleibt gespeichert)</button>
@@ -631,7 +647,7 @@ const SCREENS = {
   end(sm) {
     view(`<div class="scroll center"><div class="big">${sm.victory ? '🏆' : '💀'}</div>
       <h1>${sm.victory ? 'SIEG!' : 'Besiegt…'}</h1>
-      <p class="mut">${sm.victory ? 'Du hast Freezer bezwungen und den Planeten gerettet!' : 'Ein Saiyajin wird nach jeder Niederlage stärker.'}</p>
+      <p class="mut">${sm.victory ? sm.winTxt : 'Ein Saiyajin wird nach jeder Niederlage stärker.'}</p>
       <div class="panel" style="width:100%"><div class="stats" style="grid-template-columns:repeat(3,1fr)">
         <div><b>${sm.floor}</b><span>Etage</span></div><div><b>${sm.kills}</b><span>Siege</span></div><div><b>${sm.bosses}</b><span>Bosse</span></div></div></div>
       <div class="panel" style="width:100%"><div style="font-size:30px;font-weight:900;color:var(--org2)">+${sm.z} ⭐ Zenkai</div>
@@ -733,7 +749,8 @@ function showReplace(card, done) {
 /* ---------- Eingabe ---------- */
 const ACT = {
   start() { sfx('ui'); if (SAVE.run && !confirm('Den gespeicherten Run verwerfen und neu starten?')) return; newRun(); },
-  resume() { run = SAVE.run; sfx('ui'); go(run.screen === 'reward' && !run.reward ? 'map' : run.screen); },
+  resume() { run = SAVE.run; run.saga = run.saga || 'saiyan'; sfx('ui'); go(run.screen === 'reward' && !run.reward ? 'map' : run.screen); },
+  saga(d) { SAVE.saga = d.id; save(); sfx('ui'); go('menu'); },
   menu() { if (B) B = null; sfx('ui'); go('menu'); },
   metaScr() { go('meta'); }, chars() { go('chars'); }, wish() { go('wish'); },
   snd() { SAVE.sound = !SAVE.sound; save(); go('menu'); },
