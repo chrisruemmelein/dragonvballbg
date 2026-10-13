@@ -230,7 +230,7 @@ function genNodes() {
 
 function makeEnemy(f, type) {
   const sf = f + SAGAS[run.saga].off, sc = Math.pow(1.26, sf - 1);
-  let hp = 44 * sc, atk = 5.5 * Math.pow(1.21, sf - 1), int = 1.7, def = sf * .8, chargeEvery = 0, boss = false;
+  let hp = 135 * sc, atk = 3.0 * Math.pow(1.21, sf - 1), int = 1.7, def = sf * .8, chargeEvery = 0, boss = false;
   const sg = SAGAS[run.saga];
   let who = f <= 4 ? pick(ENEMIES[sg.a1]) : pick(ENEMIES[sg.a2]);
   if (type === 'elite') { who = f <= 5 ? pick(ENEMIES[sg.e1]) : pick(ENEMIES[sg.e2]); hp *= 1.9; atk *= 1.3; int = 1.6; chargeEvery = 4; }
@@ -365,7 +365,7 @@ function findBall() {
 function startBattle() {
   const n = run.node, e = makeEnemy(run.floor, n.type), S = stats();
   B = { e, S, ehp: e.hp, eMax: e.hp, pT: 0, eT: e.int * .5, ki: S.maxKi * .5, cd: {}, buff: { ssj: 0, dodge: 0 },
-        stun: 0, charge: null, eCount: 0, over: false, nextCrit: false, enraged: false, auto: SAVE.set.auto, fast: SAVE.set.fast, autoT: 0, time: 0 };
+        intro: .8, stun: 0, charge: null, eCount: 0, over: false, nextCrit: false, enraged: false, auto: SAVE.set.auto, fast: SAVE.set.fast, autoT: 0, time: 0 };
   go('battle-ui');
   startLoop();
 }
@@ -387,6 +387,7 @@ function startLoop() {
 
 function tick(dt) {
   if (!B || B.over) return;
+  if (B.intro > 0) { B.intro -= dt; return; }
   const s = B.S, e = B.e;
   B.time += dt;
   B.ki = Math.min(s.maxKi, B.ki + s.regen * (B.buff.ssj > 0 ? 1.5 : 1) * dt);
