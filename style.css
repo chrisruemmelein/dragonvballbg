@@ -9,7 +9,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);
   font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;
   overscroll-behavior:none;touch-action:manipulation}
 #app{height:100dvh;max-width:520px;margin:0 auto;display:flex;flex-direction:column;
-  padding:calc(8px + var(--safe-t)) 12px calc(10px + var(--safe-b));
+  padding:calc(8px + var(--safe-t)) 12px calc(64px + var(--safe-b)); /* Platz für Browserleiste / Netlify-Badge unten rechts */
   background:radial-gradient(120% 60% at 50% 0,#1d2a5c 0,var(--bg) 70%)}
 h1,h2,h3,p{margin:0}
 .scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:4px 2px 8px;

@@ -21,12 +21,15 @@ const MAX_TECHS = 4;
 /* ---------- Spielstand ---------- */
 function defSave() {
   return { zenkai: 0, meta: {}, chars: { goku: 1 }, sel: 'goku', best: 0, wins: 0, runs: 0,
-           balls: 0, wish: {}, run: null, sound: true };
+           balls: 0, wish: {}, run: null, sound: true,
+           set: { auto: true, fast: false, vib: true, nums: true, autoSenzu: true } };
 }
 function loadSave() {
   try {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY));
-    return Object.assign(defSave(), s || {});
+    const d = Object.assign(defSave(), s || {});
+    d.set = Object.assign(defSave().set, d.set);
+    return d;
   } catch (e) { return defSave(); }
 }
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) {} }
@@ -147,7 +150,7 @@ function sfx(kind) {
     o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime + f[2]);
   } catch (e) {}
 }
-function buzz(ms) { try { if (SAVE.sound && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+function buzz(ms) { try { if (SAVE.set.vib && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 
 /* ---------- Avatar (selbst gezeichnet, SVG) ---------- */
 function avatar(id, ssj) {
@@ -362,7 +365,7 @@ function findBall() {
 function startBattle() {
   const n = run.node, e = makeEnemy(run.floor, n.type), S = stats();
   B = { e, S, ehp: e.hp, eMax: e.hp, pT: 0, eT: e.int * .5, ki: S.maxKi * .5, cd: {}, buff: { ssj: 0, dodge: 0 },
-        stun: 0, charge: null, eCount: 0, over: false, nextCrit: false, enraged: false, auto: false, fast: false, autoT: 0, time: 0 };
+        stun: 0, charge: null, eCount: 0, over: false, nextCrit: false, enraged: false, auto: SAVE.set.auto, fast: SAVE.set.fast, autoT: 0, time: 0 };
   go('battle-ui');
   startLoop();
 }
@@ -473,7 +476,7 @@ function autoPlay() {
     for (const id of ['kiai', 'teleport']) { const i = has(id); if (ready(i)) return useTech(i); }
   }
   if (run.hp < s.maxHp * .45) { const i = has('heal'); if (ready(i)) return useTech(i); }
-  if (run.hp < s.maxHp * .3) { const i = run.items.indexOf('senzu'); if (i >= 0) return useItem(i); }
+  if (SAVE.set.autoSenzu && run.hp < s.maxHp * .3) { const i = run.items.indexOf('senzu'); if (i >= 0) return useItem(i); }
   const si = has('ssj'); if (si >= 0 && B.buff.ssj <= 0 && ready(si)) return useTech(si);
   const order = run.techs.map((t, i) => i).filter(i => !['kiai', 'teleport', 'heal', 'ssj'].includes(run.techs[i].id))
     .sort((a, b) => TECH[run.techs[b].id].cost - TECH[run.techs[a].id].cost);
@@ -525,6 +528,7 @@ function toast(t) {
   clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 1800);
 }
 function floatText(txt, who, cls) {
+  if (!SAVE.set.nums) return;
   const el = document.createElement('div');
   el.className = 'fl ' + (cls || ''); el.textContent = txt;
   const r = $(who === 'e' ? '#enemyAv' : '#playerAv');
@@ -578,7 +582,7 @@ const SCREENS = {
       <div class="row"><button class="btn sec" data-a="metaScr">🏋️ Training</button><button class="btn sec" data-a="chars">🥋 Kämpfer</button></div>
       ${SAVE.balls >= 7 ? '<button class="btn red" data-a="wish">🐉 SHENLONG RUFEN! (7/7)</button>' : `<div class="panel small mut" style="width:100%">🟠 Dragonbälle: <b style="color:var(--org2)">${SAVE.balls}/7</b> – gefunden in Elite-Kämpfen, Bossen und Ereignissen. Sie bleiben auch nach dem Tod erhalten!</div>`}
       <div class="panel small mut" style="width:100%;text-align:left"><b style="color:var(--txt)">So geht's:</b><br>Der Kampf läuft automatisch. Du nutzt <b>Techniken</b> (Ki) im richtigen Moment und baust zwischen den Kämpfen deinen <b>Build</b>. Bei <b>⚠️ Aufladung</b> unterbrichst du mit Kiai oder weichst per Instant Transmission aus. Stirbst du, bekommst du ⭐ Zenkai und wirst dauerhaft stärker.</div>
-      <div class="row" style="width:100%"><button class="btn sec" data-a="snd">${SAVE.sound ? '🔊 Ton an' : '🔇 Ton aus'}</button><button class="btn sec" data-a="reset">🗑️ Reset</button></div>
+      <div class="row" style="width:100%"><button class="btn sec" data-a="settings">⚙️ Einstellungen</button><button class="btn sec" data-a="reset">🗑️ Reset</button></div>
     </div>`);
   },
   map() {
@@ -596,6 +600,7 @@ const SCREENS = {
   'battle-ui'() {
     const e = B.e, ch = CHARS[run.char];
     view(`<div class="battle">
+      <div class="ctrl"><button class="ib ${B.auto ? 'on' : ''}" id="autoB" data-a="auto" style="flex:1">🤖 Auto: ${B.auto ? 'AN' : 'AUS'}</button><button class="ib ${B.fast ? 'on' : ''}" id="fastB" data-a="fast">⏩ x${B.fast ? 2 : 1}</button></div>
       <div class="fighter"><div class="top"><div class="av" id="enemyAv">${e.e}</div>
         <div style="flex:1"><div class="nm">${e.n}${e.type === 'elite' ? ' 💀' : ''}${e.boss ? ' 👑' : ''}</div>
         <div class="bar hp e"><i id="eHp"></i><span id="eHpT"></span></div></div></div></div>
@@ -606,7 +611,6 @@ const SCREENS = {
         <div class="bar ki" style="margin-top:4px"><i id="pKi"></i><span id="pKiT"></span></div></div></div></div>
       <div class="techs" id="techs"></div>
       <div class="items" id="items"></div>
-      <div class="ctrl"><button class="ib" id="autoB" data-a="auto" style="flex:1">🤖 Auto: AUS</button><button class="ib" id="fastB" data-a="fast">⏩ x1</button></div>
     </div>`);
     B.uiBuilt = false; updateBattleUI();
   },
@@ -675,6 +679,18 @@ const SCREENS = {
           <span class="tx"><b>${c.n}</b><span class="small mut">${c.d}</span><span class="small">❤️${c.hp} · 💪${c.atk} · 🛡️${c.def}</span></span>
           <button class="btn ${own ? 'sec' : ''}" data-a="${own ? 'selChar' : 'buyChar'}" data-id="${id}" ${sel || (!own && SAVE.zenkai < c.cost) ? 'disabled' : ''}>${sel ? '✔' : own ? 'Wählen' : c.cost + ' ⭐'}</button></div>`;
       }).join('')}</div>`);
+  },
+  settings() {
+    const t = (k, label, d) => `<button class="meta" data-a="set" data-k="${k}" style="width:100%;color:inherit;font:inherit;text-align:left"><span class="tx"><b>${label}</b><span class="small mut">${d}</span></span><span class="btn ${(k === 'sound' ? SAVE.sound : SAVE.set[k]) ? 'grn' : 'sec'}" style="width:auto;min-height:40px;padding:8px 14px">${(k === 'sound' ? SAVE.sound : SAVE.set[k]) ? 'AN' : 'AUS'}</span></button>`;
+    view(`<div class="hud"><button class="chip" data-a="menu" style="color:inherit;font:inherit">⬅ Zurück</button></div>
+      <div class="scroll"><h2 class="center">⚙️ Einstellungen</h2>
+      ${t('auto', '🤖 Auto-Kampf', 'Techniken werden automatisch eingesetzt (startet jeden Kampf an)')}
+      ${t('autoSenzu', '🫘 Auto-Senzu', 'Auto-Modus isst bei unter 30% LP eine Senzu-Bohne')}
+      ${t('fast', '⏩ Doppelte Geschwindigkeit', 'Kämpfe laufen mit x2')}
+      ${t('sound', '🔊 Ton', 'Soundeffekte')}
+      ${t('vib', '📳 Vibration', 'Bei Treffern (nur Android)')}
+      ${t('nums', '🔢 Schadenszahlen', 'Zahlen über den Kämpfern anzeigen')}
+      </div>`);
   },
   wish() {
     view(`<div class="scroll center"><div class="big">🐉</div><h2>Shenlong erscheint!</h2><p class="mut">"Sprich deinen Wunsch aus!"</p>
@@ -753,13 +769,15 @@ const ACT = {
   saga(d) { SAVE.saga = d.id; save(); sfx('ui'); go('menu'); },
   menu() { if (B) B = null; sfx('ui'); go('menu'); },
   metaScr() { go('meta'); }, chars() { go('chars'); }, wish() { go('wish'); },
+  settings() { go('settings'); },
+  set(d) { if (d.k === 'sound') SAVE.sound = !SAVE.sound; else SAVE.set[d.k] = !SAVE.set[d.k]; save(); sfx('ui'); go('settings'); },
   snd() { SAVE.sound = !SAVE.sound; save(); go('menu'); },
   reset() { if (confirm('Wirklich ALLES zurücksetzen (Zenkai, Freischaltungen, Run)?')) { SAVE = defSave(); save(); go('menu'); } },
   node(d) { enterNode(+d.i); },
   tech(d) { useTech(+d.i); },
   item(d) { useItem(+d.i); },
-  auto() { B.auto = !B.auto; $('#autoB').textContent = '🤖 Auto: ' + (B.auto ? 'AN' : 'AUS'); $('#autoB').classList.toggle('on', B.auto); },
-  fast() { B.fast = !B.fast; $('#fastB').textContent = '⏩ x' + (B.fast ? 2 : 1); $('#fastB').classList.toggle('on', B.fast); },
+  auto() { B.auto = !B.auto; SAVE.set.auto = B.auto; save(); $('#autoB').textContent = '🤖 Auto: ' + (B.auto ? 'AN' : 'AUS'); $('#autoB').classList.toggle('on', B.auto); },
+  fast() { B.fast = !B.fast; SAVE.set.fast = B.fast; save(); $('#fastB').textContent = '⏩ x' + (B.fast ? 2 : 1); $('#fastB').classList.toggle('on', B.fast); },
   reward(d) { pickReward(+d.i); },
   skipReward() { addGold(25); finishReward(); },
   buy(d) {
