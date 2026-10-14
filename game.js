@@ -753,6 +753,7 @@ const SCREENS = {
       <div class="row"><button class="btn sec" data-a="metaScr">🏋️ Training</button><button class="btn sec" data-a="chars">🥋 Kämpfer</button></div>
       ${SAVE.balls >= 7 ? '<button class="btn red" data-a="wish">🐉 SHENLONG RUFEN! (7/7)</button>' : `<div class="panel small mut" style="width:100%">${ballsRow(SAVE.balls, 26)}<br>Dragonbälle (${SAVE.balls}/7) findest du in Elite-Kämpfen, bei Bossen und in Ereignissen. Sie bleiben nach dem Tod erhalten!</div>`}
       <div class="panel small mut" style="width:100%;text-align:left"><b style="color:var(--txt)">So geht's:</b><br>Der Kampf läuft automatisch. Setze <b>Techniken</b> (Ki) im richtigen Moment ein und baue zwischen den Kämpfen deinen <b>Build</b>. Bei <b>⚠️ Aufladung</b> tippst du die rote Warnung an, um auszuweichen (25 Ki) – oder unterbrichst mit Kiai. Mit <b>⏭ Ende</b> rechnest du einen Kampf sofort zu Ende. Gegner haben <b>Eigenschaften</b> – lies sie! Stirbst du, bekommst du ⭐ Zenkai und wirst dauerhaft stärker. Schaffst du eine Saga, wird die <b>Schwerkraft</b> erhöht.</div>
+      <div class="row" style="width:100%"><button class="btn sec" data-a="backup">💾 Sichern</button><button class="btn sec" data-a="restore">📥 Laden</button></div>
       <div class="row" style="width:100%"><button class="btn sec" data-a="settings">⚙️ Einstellungen</button><button class="btn sec" data-a="reset">🗑️ Reset</button></div>
     </div>`);
   },
@@ -854,7 +855,7 @@ const SCREENS = {
       ${SAVE.balls >= 7 ? '<button class="btn red" data-a="wish">🐉 SHENLONG RUFEN!</button>' : ''}
       <button class="btn" data-a="metaScr">🏋️ Zenkai ausgeben</button>
       <button class="btn grn" data-a="start">⚔️ Nochmal!</button>
-      <button class="btn sec" data-a="menu">Hauptmenü</button></div>`);
+      <div class="row"><button class="btn sec" data-a="menu">Hauptmenü</button><button class="btn sec" data-a="backup">💾 Sichern</button></div></div>`);
   },
   meta() {
     view(`<div class="hud"><button class="chip" data-a="menu">⬅ Zurück</button><span class="sp"></span><span class="chip">⭐ ${SAVE.zenkai}</span></div>
@@ -887,6 +888,7 @@ const SCREENS = {
       ${t('vib', '📳 Vibration', 'Bei Treffern (nur Android)')}
       ${t('shake', '💥 Bildschirm-Wackeln', 'Bei starken Treffern und Techniken')}
       ${t('nums', '🔢 Schadenszahlen', 'Zahlen über den Kämpfern anzeigen')}
+      <div class="row"><button class="btn sec" data-a="backup">💾 Sichern</button><button class="btn sec" data-a="restore">📥 Laden</button></div>
       </div>`);
   },
   wish() {
@@ -956,6 +958,48 @@ function updateBattleUI() {
     const T = TECH[t.id], cd = B.cd[t.id] || 0, ok = B.ki >= T.cost && cd <= 0;
     b.classList.toggle('ready', ok); b.classList.toggle('nokai', B.ki < T.cost);
     b.querySelector('.cdo').style.width = (T.cd ? cd / T.cd * 100 : 0) + '%';
+  });
+}
+
+/* ---------- Spielstand sichern / laden ---------- */
+function exportCode() {
+  const json = JSON.stringify(SAVE);
+  return 'ZQ1:' + btoa(unescape(encodeURIComponent(json)));
+}
+function parseCode(txt) {
+  try {
+    txt = (txt || '').trim().replace(/\s+/g, '');
+    if (txt.startsWith('ZQ1:')) txt = txt.slice(4);
+    const o = JSON.parse(decodeURIComponent(escape(atob(txt))));
+    if (!o || typeof o !== 'object' || typeof o.zenkai !== 'number' || typeof o.meta !== 'object') return null;
+    return o;
+  } catch (e) { return null; }
+}
+function applyImported(o) {
+  const d = Object.assign(defSave(), o);
+  d.set = Object.assign(defSave().set, d.set || {});
+  if (d.run && d.run.v !== RUN_VER) d.run = null;
+  SAVE = d; run = null; B = null; save(); go('menu'); toast('✅ Spielstand geladen!');
+}
+function showBackup() {
+  const code = exportCode();
+  modal(`<h3>💾 Spielstand sichern</h3>
+    <p class="small mut">Speichere diesen Code oder die Datei an einem sicheren Ort (z. B. Notizen, Nachrichten an dich selbst). Damit kannst du deinen Stand jederzeit wiederherstellen – auch auf einem anderen Handy oder einer anderen Adresse.</p>
+    <textarea id="bkTxt" readonly rows="5">${code}</textarea>
+    <div class="row"><button class="btn" data-a="bkCopy">📋 Kopieren</button><button class="btn sec" data-a="bkFile">⬇️ Datei</button></div>
+    <p class="small mut">Enthält: ⭐${SAVE.zenkai} Zenkai · ${Object.keys(SAVE.chars).length} Kämpfer · ${SAVE.wins} Siege · Freischaltungen${SAVE.run ? ' · laufender Run' : ''}</p>
+    <button class="btn sec" data-a="closeModal">Schließen</button>`);
+}
+function showRestore() {
+  modal(`<h3>📥 Spielstand laden</h3>
+    <p class="small mut">Füge deinen gesicherten Code ein oder wähle die gespeicherte Datei. <b>Der aktuelle Spielstand auf diesem Gerät wird dabei ersetzt.</b></p>
+    <textarea id="rsTxt" rows="5" placeholder="ZQ1:…"></textarea>
+    <input type="file" id="rsFile" accept=".txt,.json,text/plain" style="display:none">
+    <div class="row"><button class="btn sec" data-a="rsPick">📁 Datei wählen</button><button class="btn grn" data-a="rsGo">✔ Laden</button></div>
+    <button class="btn sec" data-a="closeModal">Abbrechen</button>`);
+  $('#rsFile').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader(); r.onload = () => { $('#rsTxt').value = String(r.result || ''); toast('Datei gelesen – jetzt „Laden“ drücken'); }; r.readAsText(f);
   });
 }
 
@@ -1041,6 +1085,26 @@ const ACT = {
   },
   build() { showBuild(); },
   closeModal() { closeModal(); },
+  backup() { showBackup(); },
+  restore() { showRestore(); },
+  bkCopy() {
+    const t = $('#bkTxt'); if (!t) return;
+    const ok = () => toast('📋 Code kopiert!');
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t.value).then(ok, () => { t.select(); document.execCommand('copy'); ok(); });
+    else { t.select(); t.setSelectionRange(0, 999999); try { document.execCommand('copy'); } catch (e) {} ok(); }
+  },
+  bkFile() {
+    const blob = new Blob([exportCode()], { type: 'text/plain' }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'zenkai-quest-spielstand.txt'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast('⬇️ Datei wird gespeichert');
+  },
+  rsPick() { const f = $('#rsFile'); if (f) f.click(); },
+  rsGo() {
+    const o = parseCode($('#rsTxt').value);
+    if (!o) return toast('❌ Der Code ist ungültig');
+    if (!confirm('Aktuellen Spielstand wirklich durch den geladenen ersetzen?\n(⭐' + o.zenkai + ' Zenkai, ' + (o.wins || 0) + ' Siege)')) return;
+    applyImported(o);
+  },
   replace(d) {
     const i = +d.i, card = window.__replaceCard, done = window.__replaceDone;
     if (B && !B.over) return;
@@ -1056,4 +1120,5 @@ document.addEventListener('click', e => {
 document.addEventListener('visibilitychange', () => { lastT = performance.now(); });
 
 /* ---------- Start ---------- */
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 go('menu');

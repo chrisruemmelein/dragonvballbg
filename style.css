@@ -234,3 +234,5 @@ button.chip{cursor:pointer}
 .spr.formed[data-fs=kk] .fig{filter:sepia(.35) saturate(2.2) hue-rotate(-25deg) drop-shadow(0 0 9px #ff2a2a)}
 .spr.formed[data-fs=mui] .fig{filter:brightness(1.25) drop-shadow(0 0 12px #fff)}
 .spr.formed[data-fs=ssj3] .aura-el{width:180%;height:110%}
+
+textarea{width:100%;background:#070a18;color:#cfe;border:3px solid #000;border-radius:12px;padding:10px;font:12px/1.3 ui-monospace,Menlo,Consolas,monospace;resize:none;user-select:text;-webkit-user-select:text;word-break:break-all}
