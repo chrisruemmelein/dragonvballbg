@@ -117,6 +117,7 @@ const ART = (() => {
       const path = (hp === 'raditz' || hp === 'long') ? HAIR[hp] : hairPath;
       hair += `<path d="${path}" fill="${hc}" ${S}/><path d="M58,22 Q70,14 84,22" fill="none" stroke="#fff" stroke-opacity="${ssj ? .55 : .22}" stroke-width="3" stroke-linecap="round"/>`;
     }
+    if (has('ears')) hair += `<path d="M50,34 L44,6 L64,26Z M90,34 L96,6 L76,26Z" fill="${skin}" ${S}/><path d="M52,30 L48,14 L58,26Z M88,30 L92,14 L82,26Z" fill="${shade(skin, -.25)}"/>`;
     if (has('turban')) hair += `<path d="M49,36 Q70,12 91,36 L91,40 L49,40Z" fill="#f4f4f4" ${S}/><path d="M58,30 Q70,22 82,30" fill="none" stroke="#c9c9d6" stroke-width="2"/>`;
     if (has('antennae')) hair += `<path d="M62,28 Q58,16 54,10 M78,28 Q82,16 86,10" fill="none" stroke="${OUT}" stroke-width="6" stroke-linecap="round"/><path d="M62,28 Q58,16 54,10 M78,28 Q82,16 86,10" fill="none" stroke="${skin}" stroke-width="3" stroke-linecap="round"/>`;
     if (has('horns')) hair += `<path d="M52,32 C40,22 42,6 54,0 L58,24Z M88,32 C100,22 98,6 86,0 L82,24Z" fill="${p.horn || '#f4f0ff'}" ${S}/>`;
@@ -147,6 +148,16 @@ const ART = (() => {
     buuhouse:  { sky: ['#ffb0d8', '#ff8ac0', '#c05aa0'], sun: [.7, .25, 40, '#fff0f8'], far: '#c25a98', mid: '#a04880', ground: ['#e87ab8', '#a04880'], deco: 'domes' },
     otherworld:{ sky: ['#3a1a6a', '#8a3a9a', '#ffd06a'], sun: [.5, .3, 60, '#fff0a0'], far: '#5a2a7a', mid: '#3a1a5a', ground: ['#f0d890', '#9a7a4a'], deco: 'clouds', stars: true },
     ruins:     { sky: ['#4a0f1f', '#a02a2a', '#ff8a4a'], sun: [.3, .3, 50, '#ffcf8a'], far: '#4a1a22', mid: '#2e0e18', ground: ['#5a3a3a', '#2a1a1a'], deco: 'mesa' },
+    beerusP:   { sky: ['#1a1040', '#4a1a7a', '#ff7ad0'], sun: [.72, .26, 44, '#ffe0f8'], far: '#2a1050', mid: '#1c0a3a', ground: ['#7a5aaa', '#2a1850'], deco: 'domes', stars: true },
+    frozen:    { sky: ['#bfe8ff', '#e8f6ff', '#ffffff'], sun: [.3, .22, 34, '#ffffff'], far: '#9ac8e8', mid: '#7aa8c8', ground: ['#eaf6ff', '#a8c8e0'], deco: 'mesa' },
+    u6arena:   { sky: ['#ffb870', '#ffd89a', '#fff0d0'], sun: [.7, .22, 40, '#fff6d8'], far: '#c8a870', mid: '#a88858', ground: ['#d8c8a8', '#9a8868'], deco: 'tiles' },
+    future:    { sky: ['#2a0a1a', '#6a1a2a', '#c85a3a'], sun: [.3, .3, 44, '#ffb070'], far: '#2a0a14', mid: '#1a0610', ground: ['#4a2a2a', '#1a0a0a'], deco: 'bldg' },
+    top:       { sky: ['#0a0a2a', '#1a1a5a', '#4a3aaa'], sun: null, far: '#1a1a4a', mid: '#12123a', ground: ['#d0d0dc', '#8a8a98'], deco: 'tiles', stars: true },
+    icy:       { sky: ['#9ad0ff', '#d8f0ff', '#ffffff'], sun: [.7, .2, 36, '#ffffff'], far: '#a8c8e8', mid: '#88a8c8', ground: ['#f0f8ff', '#b0c8e0'], deco: 'mesa' },
+    moro:      { sky: ['#1a2a1a', '#2a4a2a', '#6a8a4a'], sun: [.5, .25, 40, '#caff9a'], far: '#0a1a0a', mid: '#061006', ground: ['#4a5a3a', '#1a2a1a'], deco: 'pillars' },
+    granolahP: { sky: ['#ffcf8a', '#ff9a5a', '#8a3a2a'], sun: [.25, .28, 46, '#fff0c0'], far: '#9a4a2a', mid: '#7a3a22', ground: ['#b8783c', '#6a4222'], deco: 'mesa' },
+    gasst:     { sky: ['#0a1a2a', '#1a3a5a', '#3a7aaa'], sun: null, far: '#122a40', mid: '#0a1a2a', ground: ['#6a7a8a', '#2a323a'], deco: 'pillars', stars: true },
+    hero:      { sky: ['#7aa0ff', '#c8d8ff', '#ffe8d0'], sun: [.7, .2, 36, '#fffbe0'], far: '#6a7aa8', mid: '#4a5a88', ground: ['#8a8a98', '#4a4a58'], deco: 'bldg' },
   };
 
   function bg(name) {

@@ -24,6 +24,15 @@ const CHARS = {
   trunks:  { n: 'Trunks', hp: 110, atk: 15, def: 3, ki: 100, regen: 8, crit: .08, start: ['kiai'], cost: 450, ac: '#c9a0ff', mods: { critDmg: .4 },
              p: { skin: '#f6c8a0', hair: 'trunks', hc: '#a98cf0', top: '#2a3fa0', bot: '#555d7a', inner: '#3a2a70', belt: '#8a5a2a', boots: '#6b3a1d', wrist: '#2a3fa0', ex: ['sword'] },
              d: 'Schwertkämpfer: +40% Krit-Schaden. Startet mit Kiai.' },
+  gotenks: { n: 'Gotenks', hp: 105, atk: 15, def: 2, ki: 110, regen: 9, crit: .12, start: ['kiblast'], cost: 600, ac: '#c9a0ff', mods: { spdPct: .15 },
+             p: { skin: '#f6c8a0', hair: 'gohan', hc: '#8a5acc', top: '#2a55c8', bot: '#2a55c8', inner: '#ff7a12', belt: '#ff7a12', boots: '#f4f4f4', wrist: '#ff7a12', ex: ['scarf'] },
+             d: 'Fusion: +15% Tempo, +12% Krit. Startet mit Ki-Salve.' },
+  broly:   { n: 'Broly', hp: 175, atk: 17, def: 5, ki: 90, regen: 6, crit: .05, start: ['kiai'], cost: 900, ac: '#7cff7a', mods: { lowHpAtk: .3 },
+             p: { skin: '#e8b78a', hair: 'recoome', hc: '#3a9a4a', top: '#6a7a4a', bot: '#3a3a3a', inner: '#3a3a3a', belt: '#8a5a2a', boots: '#3a3a3a', build: 'big', ex: ['saiarmor', 'tail'], armor: '#6a8a4a', pad: '#8a5a2a' },
+             d: 'Bulle: sehr viele LP und Rüstung, wenig Ki-Regen, +30% Angriff unter 50% LP. Startet mit Kiai.' },
+  beerus:  { n: 'Beerus', hp: 130, atk: 19, def: 3, ki: 120, regen: 10, crit: .1, start: ['hakai'], cost: 1500, ac: '#b070ff', mods: { critDmg: .3 },
+             p: { skin: '#a98cd6', hair: 'none', hc: '#000', top: '#5a2a9a', bot: '#5a2a9a', inner: '#e0b020', belt: '#e0b020', boots: '#e0b020', wrist: '#e0b020', ex: ['ears', 'cape'], cape: '#5a2a9a' },
+             d: 'Gott der Zerstörung: hoher Angriff, +30% Krit-Schaden. Startet mit Hakai.' },
 };
 
 /* ---------- Gegner (Aussehen als Parameter für art.js) ---------- */
@@ -60,16 +69,54 @@ const ENEMY = {
   buuclone: E('Buu-Klon', { skin: '#ffb0cc', hair: 'none', hc: '#000', top: '#ffb0cc', bot: '#8a5a2a', inner: '#ffb0cc', belt: '#8a5a2a', boots: '#8a5a2a', build: 'small', ex: ['buuhead'] }, { size: .9 }),
   superbuu: E('Super Boo', { skin: '#ff8ab0', hair: 'none', hc: '#000', top: '#ff8ab0', bot: '#222', inner: '#ff8ab0', belt: '#d8b020', boots: '#2a55c8', ex: ['buuhead', 'cape'] }, { size: 1.3 }),
   kidbuu:   E('Kid Boo', { skin: '#ff9ac0', hair: 'none', hc: '#000', top: '#ff9ac0', bot: '#222', inner: '#ff9ac0', belt: '#222', boots: '#222', build: 'small', ex: ['buuhead'], eye: '#c11' }, { size: 1.15 }),
+  /* Super-Saga */
+  sorbet:   E('Sorbet', { skin: '#e8d8ff', hair: 'bald', hc: '#000', top: '#6a2a9a', bot: '#f2eefc', inner: '#f2eefc', belt: '#6a2a9a', boots: '#6a2a9a', build: 'slim', ex: ['horns', 'fzparts'] }, { size: 1.1 }),
+  tagoma:   E('Tagoma', { skin: '#c88ae8', hair: 'bald', hc: '#000', top: '#6a2a9a', bot: '#3a3a3a', inner: '#3a3a3a', belt: '#222', boots: '#222', build: 'big', ex: ['saiarmor', 'scouter'] }, { size: 1.2 }),
+  shisami:  E('Shisami', { skin: '#7ad88a', hair: 'bald', hc: '#000', top: '#6a2a9a', bot: '#3a3a3a', inner: '#3a3a3a', belt: '#222', boots: '#222', build: 'small', ex: ['saiarmor'] }, { size: .9 }),
+  beerus:   E('Beerus', { skin: '#a98cd6', hair: 'none', hc: '#000', top: '#5a2a9a', bot: '#5a2a9a', inner: '#e0b020', belt: '#e0b020', boots: '#e0b020', wrist: '#e0b020', ex: ['ears', 'cape'], cape: '#5a2a9a' }, { size: 1.25 }),
+  whis:     E('Whis', { skin: '#a8d8ff', hair: 'long', hc: '#f0f4ff', top: '#5a7ad8', bot: '#5a7ad8', inner: '#f4f4f4', belt: '#d8b020', boots: '#5a7ad8', ex: ['cape'], cape: '#5a7ad8' }, { size: 1.15 }),
+  goldfrieza: E('Golden Freezer', { skin: '#ffd23a', hair: 'bald', hc: '#000', top: '#ffd23a', bot: '#ffd23a', inner: '#ffd23a', belt: '#ffb000', boots: '#ffb000', build: 'slim', horn: '#ffe680', ex: ['horns', 'tail', 'fzparts'] }, { size: 1.35 }),
+  cabba:    E('Cabba', { skin: '#f0c090', hair: 'vegeta', hc: '#d83b3b', top: '#2a55c8', bot: '#2a55c8', inner: '#2a55c8', belt: '#2a55c8', boots: '#f4f4f4', wrist: '#f4f4f4', ex: ['saiarmor'] }),
+  botamo:   E('Botamo', { skin: '#d8a070', hair: 'bald', hc: '#000', top: '#8a5a2a', bot: '#3a3a3a', inner: '#3a3a3a', belt: '#222', boots: '#222', build: 'big', ex: ['saiarmor'] }, { size: 1.35 }),
+  frost:    E('Frost', { skin: '#f2eefc', hair: 'bald', hc: '#000', top: '#4a6ad8', bot: '#f2eefc', inner: '#f2eefc', belt: '#4a6ad8', boots: '#4a6ad8', build: 'slim', ex: ['horns', 'fzparts'] }, { size: 1.15 }),
+  champa:   E('Champa', { skin: '#d8a8f0', hair: 'none', hc: '#000', top: '#f0a020', bot: '#f0a020', inner: '#f0a020', belt: '#c88000', boots: '#c88000', build: 'big', ex: ['ears', 'cape'], cape: '#f0a020' }, { size: 1.3 }),
+  hit:      E('Hit', { skin: '#c8b8e0', hair: 'goku', hc: '#d8d8e0', top: '#3a2a5a', bot: '#3a2a5a', inner: '#f4f4f4', belt: '#222', boots: '#222', ex: ['cape'], cape: '#2a1a3a' }, { size: 1.2 }),
+  zamasu:   E('Zamasu', { skin: '#a8e8c0', hair: 'trunks', hc: '#f4f4f4', top: '#a060d0', bot: '#a060d0', inner: '#f4f4f4', belt: '#d8b020', boots: '#a060d0' }, { size: 1.05 }),
+  blackfighter: E('Black', { skin: '#f6c8a0', hair: 'goku', hc: '#1b1b1f', top: '#2a2a32', bot: '#2a2a32', inner: '#f08aa8', belt: '#d8b020', boots: '#2a2a32', wrist: '#d8587a' }, { size: 1.1 }),
+  zamasufusion: E('Fusion-Zamasu', { skin: '#98d8b0', hair: 'trunks', hc: '#f4f4f4', top: '#6a4ab0', bot: '#6a4ab0', inner: '#f4f4f4', belt: '#d8b020', boots: '#6a4ab0', build: 'big', ex: ['horns', 'cape'], cape: '#6a4ab0' }, { size: 1.35 }),
+  dyspo:    E('Dyspo', { skin: '#e8a070', hair: 'bald', hc: '#000', top: '#d83b3b', bot: '#d83b3b', inner: '#d83b3b', belt: '#222', boots: '#f4f4f4', build: 'slim', ex: ['ears'] }),
+  kale:     E('Kale', { skin: '#e8b890', hair: 'recoome', hc: '#2a9a4a', top: '#2a7a3a', bot: '#2a7a3a', inner: '#2a7a3a', belt: '#222', boots: '#222', build: 'big', ex: ['saiarmor'], armor: '#2a7a3a' }, { size: 1.3 }),
+  anilaza:  E('Anilaza', { skin: '#8ad0f0', hair: 'bald', hc: '#000', top: '#2a5a9a', bot: '#2a5a9a', inner: '#2a5a9a', belt: '#222', boots: '#222', build: 'small', ex: ['visor'] }, { size: .95 }),
+  toppo:    E('Toppo', { skin: '#e8a070', hair: 'none', hc: '#000', top: '#d83b3b', bot: '#d83b3b', inner: '#f4f4f4', belt: '#d8b020', boots: '#222', build: 'big', ex: ['cape', 'mustache'], cape: '#f4f4f4' }, { size: 1.3 }),
+  kefla:    E('Kefla', { skin: '#f6c8a0', hair: 'long', hc: '#ffe14a', top: '#2a8a4a', bot: '#2a8a4a', inner: '#f08a30', belt: '#f4f4f4', boots: '#f4f4f4', ex: ['scarf'] }, { size: 1.15 }),
+  jiren:    E('Jiren', { skin: '#aab0c0', hair: 'none', hc: '#000', top: '#d83b3b', bot: '#d83b3b', inner: '#e8e8f0', belt: '#d8b020', boots: '#d8b020', build: 'big', ex: ['cape'], cape: '#d83b3b' }, { size: 1.45 }),
+  /* Galaxie-Saga */
+  paragus:  E('Paragus', { skin: '#f0c090', hair: 'bald', hc: '#e8e8e8', top: '#8a5a2a', bot: '#3a3a3a', inner: '#3a3a3a', belt: '#222', boots: '#222', build: 'small', ex: ['saiarmor', 'mustache'] }, { size: .95 }),
+  lemo:     E('Lemo', { skin: '#f0a040', hair: 'bald', hc: '#000', top: '#8a5a2a', bot: '#3a3a3a', inner: '#3a3a3a', belt: '#222', boots: '#222', ex: ['saiarmor', 'visor'] }),
+  broly:    E('Broly', { skin: '#e8b78a', hair: 'recoome', hc: '#7dff6a', top: '#6a7a4a', bot: '#3a3a3a', inner: '#3a3a3a', belt: '#8a5a2a', boots: '#3a3a3a', build: 'big', ex: ['saiarmor', 'tail'], armor: '#6a8a4a', pad: '#8a5a2a' }, { size: 1.55 }),
+  moroimp:  E('Moros Handlanger', { skin: '#8a9ab0', hair: 'bald', hc: '#000', top: '#4a4a6a', bot: '#4a4a6a', inner: '#4a4a6a', belt: '#222', boots: '#222', ex: ['horns'] }),
+  saganbo:  E('Saganbo', { skin: '#c0a0a0', hair: 'long', hc: '#6a4a3a', top: '#4a2a2a', bot: '#4a2a2a', inner: '#4a2a2a', belt: '#222', boots: '#222', build: 'big', ex: ['cape'], cape: '#4a2a2a' }, { size: 1.25 }),
+  moro:     E('Moro', { skin: '#a0a8b8', hair: 'bald', hc: '#e8e8e8', top: '#2a2a3a', bot: '#2a2a3a', inner: '#2a2a3a', belt: '#222', boots: '#222', build: 'slim', ex: ['horns', 'mustache', 'cape'], cape: '#2a2a3a' }, { size: 1.3 }),
+  heeter:   E('Heeter-Söldner', { skin: '#e8a070', hair: 'goku', hc: '#222', top: '#5a6a3a', bot: '#3a3a3a', inner: '#3a3a3a', belt: '#222', boots: '#222', ex: ['scarf'] }),
+  elec:     E('Elec', { skin: '#d8a880', hair: 'long', hc: '#c8c8d0', top: '#6a4a2a', bot: '#3a3a3a', inner: '#3a3a3a', belt: '#222', boots: '#222', build: 'big', ex: ['scouter'] }, { size: 1.2 }),
+  granolah: E('Granolah', { skin: '#e8c8a0', hair: 'trunks', hc: '#8a5a2a', top: '#5a4a2a', bot: '#5a4a2a', inner: '#5a4a2a', belt: '#222', boots: '#222', ex: ['scarf'] }, { size: 1.1 }),
+  gasminion: E('Gas-Gardist', { skin: '#8ac0e0', hair: 'bald', hc: '#000', top: '#2a5a8a', bot: '#2a5a8a', inner: '#2a5a8a', belt: '#222', boots: '#222', build: 'big', ex: ['horns'] }, { size: 1.1 }),
+  gas:      E('Gas', { skin: '#a0d0f0', hair: 'long', hc: '#f4f4f4', top: '#2a5a9a', bot: '#2a5a9a', inner: '#2a5a9a', belt: '#222', boots: '#222', build: 'big', ex: ['cape', 'horns'], cape: '#2a5a9a' }, { size: 1.4 }),
+  patrol:   E('Patrouillen-Android', { skin: '#c8d0d8', hair: 'none', hc: '#000', top: '#d83b3b', bot: '#d83b3b', inner: '#d83b3b', belt: '#222', boots: '#222', ex: ['visor'] }),
+  magenta:  E('Magenta', { skin: '#e8c0b0', hair: 'long', hc: '#d83b8a', top: '#d83b3b', bot: '#222', inner: '#222', belt: '#222', boots: '#222', ex: ['scarf'] }),
+  cellmax:  E('Cell Max', { skin: '#8fd060', hair: 'bald', hc: '#000', top: '#8fd060', bot: '#8fd060', inner: '#222', belt: '#222', boots: '#222', build: 'big', ex: ['spots', 'cellhead'] }, { size: 1.7 }),
 };
 
 /* ---------- Eigenschaften der Gegner ---------- */
 const TRAITS = {
-  armor:   { i: '🛡️', n: 'Panzerung', d: '+60% Rüstung – Durchdringende Techniken (Pierce) wirken stark' },
+  armor:   { i: '🛡️', n: 'Panzerung', d: '+40% Rüstung – Durchdringende Techniken (Pierce) wirken stark' },
   fast:    { i: '💨', n: 'Flink', d: 'Greift 30% schneller an' },
   regen:   { i: '💚', n: 'Regeneration', d: 'Heilt 1% LP pro Sekunde' },
   drain:   { i: '🧛', n: 'Saugend', d: 'Heilt sich um 40% des verursachten Schadens' },
   barrage: { i: '🔥', n: 'Sperrfeuer', d: 'Jeder 3. Angriff trifft dreimal' },
   berserk: { i: '😡', n: 'Berserker', d: 'Wird mit sinkenden LP bis zu 40% schneller' },
+  seeker:  { i: '🎯', n: 'Zielsuchend', d: '30% der Angriffe können nicht passiv ausgewichen werden' },
+  sap:     { i: '🕳️', n: 'Ki-Räuber', d: 'Jeder Treffer saugt dir 8 Ki ab' },
 };
 const TRAIT_KEYS = Object.keys(TRAITS);
 
@@ -101,6 +148,26 @@ const SAGAS = {
               { n: 'Jenseits', bg: 'otherworld', pool: ['buuclone', 'dabura', 'spopo'], elite: ['fatbuu'], boss: 'superbuu' },
               { n: 'Zerstörte Welt', bg: 'ruins', pool: ['buuclone', 'superbuu', 'fatbuu'], elite: ['superbuu'], boss: 'kidbuu' },
             ] },
+  super:  { n: 'Super-Saga', short: 'Super', i: '🌌', d: 'Beerus, Hit, Zamasu und das Turnier der Kräfte. 25 Etagen. Nach dem ersten Sieg in der Boo-Saga.',
+            floors: 25, off: 3, zmul: 3.6, req: 'buu',
+            win: 'Jiren ist besiegt – das Turnier der Kräfte gewonnen!',
+            acts: [
+              { n: 'Planet des Beerus', bg: 'beerusP', pool: ['sorbet', 'tagoma', 'shisami'], elite: ['sorbet'], boss: 'beerus' },
+              { n: 'Auferstehung F', bg: 'frozen', pool: ['tagoma', 'shisami', 'sorbet', 'fsoldier'], elite: ['whis', 'tagoma'], boss: 'goldfrieza' },
+              { n: 'Universum 6', bg: 'u6arena', pool: ['cabba', 'botamo', 'frost'], elite: ['champa', 'frost'], boss: 'hit' },
+              { n: 'Zerstörte Zukunft', bg: 'future', pool: ['zamasu', 'blackfighter', 'cabba'], elite: ['blackfighter', 'zamasu'], boss: 'zamasufusion' },
+              { n: 'Turnier der Kräfte', bg: 'top', pool: ['dyspo', 'kale', 'anilaza', 'toppo'], elite: ['toppo', 'kefla'], boss: 'jiren' },
+            ] },
+  galaxy: { n: 'Galaxie-Saga', short: 'Galaxie', i: '☄️', d: 'Broly, Moro, Granolah, Gas und Cell Max. 25 Etagen. Nach dem ersten Sieg in der Super-Saga.',
+            floors: 25, off: 5, zmul: 5, req: 'super',
+            win: 'Cell Max ist besiegt – die Galaxie ist gerettet!',
+            acts: [
+              { n: 'Eisplanet Vampa', bg: 'icy', pool: ['paragus', 'lemo', 'scout'], elite: ['lemo'], boss: 'broly' },
+              { n: 'Galaxie-Gefängnis', bg: 'moro', pool: ['moroimp', 'saganbo', 'lemo'], elite: ['saganbo'], boss: 'moro' },
+              { n: 'Planet Cereal', bg: 'granolahP', pool: ['heeter', 'elec', 'paragus'], elite: ['elec'], boss: 'granolah' },
+              { n: 'Gas-Raumstation', bg: 'gasst', pool: ['gasminion', 'heeter', 'patrol'], elite: ['gasminion', 'elec'], boss: 'gas' },
+              { n: 'Super Hero', bg: 'hero', pool: ['patrol', 'magenta', 'gerobot', 'cellJr'], elite: ['magenta'], boss: 'cellmax' },
+            ] },
 };
 const SAGA_KEYS = Object.keys(SAGAS);
 
@@ -121,6 +188,14 @@ const TECH = {
   combo:        { n: 'Kombo-Angriff', i: '👊', cost: 20, cd: 5, r: 'r', combo: 6, fx: 'combo', col: '#ffb347', d: 'Die nächsten 6 Standardangriffe machen ×2,2 Schaden' },
   bigbang:      { n: 'Big Bang Attack', i: '🔴', cost: 45, cd: 3, r: 'r', mult: 2, burn: 5, fx: 'sphere', col: '#ff6a3d', d: '200% Schaden + Verbrennung (5s)' },
   destructo:    { n: 'Destructo-Scheibe', i: '🔪', cost: 35, cd: 2, r: 'r', mult: 3, pierce: true, lock: 'destructo', fx: 'disc', col: '#ffd83a', d: '300% Schaden, ignoriert Rüstung' },
+  kikoho:       { n: 'Kikoho', i: '🔺', cost: 30, cd: 3, r: 'r', mult: 5.5, hpCost: .12, fx: 'beam', col: '#ffd05a', d: 'Kostet 12% deiner LP: 550% Schaden' },
+  ryuken:       { n: 'Drachenfaust', i: '🐲', cost: 55, cd: 3, r: 'r', mult: 4.2, pierce: true, fx: 'ring', col: '#ffb347', d: '420% Schaden, ignoriert Rüstung' },
+  donut:        { n: 'Galaktischer Donut', i: '🍩', cost: 30, cd: 10, r: 'r', stun: 3.5, vuln: 6, fx: 'ring', col: '#ff9de2', d: 'Betäubt 3,5s, danach nimmt der Gegner 6s lang +25% Schaden' },
+  burning:      { n: 'Burning Attack', i: '🔥', cost: 45, cd: 3, r: 'r', mult: 3, burn: 6, fx: 'beam', col: '#ff7a3d', d: '300% Schaden + Verbrennung (6s)' },
+  meteor:       { n: 'Meteor-Schauer', i: '☄️', cost: 35, cd: 2.5, r: 'r', mult: .55, hits: 6, fx: 'orbs', col: '#ff9a6a', d: '6 Treffer à 55%' },
+  superkame:    { n: 'Super-Kamehameha', i: '🌊', cost: 85, cd: 6, r: 'e', mult: 7.5, lock: 'superkame', fx: 'beam', col: '#6fd0ff', d: 'Die verstärkte Welle: 750% Schaden' },
+  zeitsprung:   { n: 'Zeitsprung', i: '⏪', cost: 70, cd: 40, r: 'e', rewind: true, lock: 'zeitsprung', fx: 'blink', col: '#fff0a0', d: 'Stellt deine LP von vor 8 Sekunden wieder her (mind. +15%), +20 Ki' },
+  clone:        { n: 'Kampfklone', i: '👥', cost: 55, cd: 22, r: 'e', clone: 10, lock: 'clone', fx: 'combo', col: '#9fe9ff', d: '10s: jeder Standardangriff schlägt mit 70% nach' },
   form:         { n: 'Transformation', i: '⚡', cost: 50, cd: 24, r: 'e', form: true, lock: 'form', fx: 'form', col: '#ffe14a', d: 'Verwandlung: wird mit jedem Aufstieg stärker (Kaio-Ken → Super Saiyajin → … → Ultra Instinct)' },
   genkidama:    { n: 'Genkidama', i: '🔵', cost: 90, cd: 8, r: 'e', mult: 8, lock: 'genkidama', fx: 'sphere', col: '#8fd8ff', d: 'Die ultimative Kugel: 800% Schaden' },
   finalflash:   { n: 'Final Flash', i: '🟡', cost: 75, cd: 5, r: 'e', mult: 6.5, lock: 'finalflash', fx: 'beam', col: '#ffd05a', d: 'Gleißender Strahl: 650% Schaden' },
@@ -147,6 +222,17 @@ const PASS = {
   absorb:  { n: 'Ki-Absorption', i: '🧲', r: 'r', m: { kiOnHurt: 5 }, d: 'Jeder erlittene Treffer gibt +5 Ki' },
   finisher:{ n: 'Henker', i: '☠️', r: 'r', m: { execute: .8 }, d: '+80% Schaden gegen Gegner unter 30% LP' },
   gravity: { n: 'Schwerkraftkammer', i: '🪐', r: 'r', m: { atkPct: .40, spdPct: -.05 }, d: '+40% Angriff, −5% Tempo' },
+  techamp: { n: 'Ki-Verstärker', i: '📡', r: 'c', m: { techDmg: .3 }, d: '+30% Technik-Schaden' },
+  flow:    { n: 'Ki-Fluss', i: '🌊', r: 'r', m: { techCd: .2 }, d: '−20% Abklingzeit deiner Techniken' },
+  frugal:  { n: 'Sparsam', i: '🪙', r: 'c', m: { techCost: .15 }, d: '−15% Ki-Kosten deiner Techniken' },
+  twin:    { n: 'Doppelschuss', i: '✌️', r: 'r', m: { dbl: .25 }, d: '25% Chance, dass eine Technik doppelt trifft' },
+  frenzy:  { n: 'Kampfrausch', i: '😤', r: 'r', m: { rage: .3 }, d: 'Treffer geben +1,5% Angriff (bis +30%), Reset bei Schaden' },
+  ironskin:{ n: 'Eisenhaut', i: '🧱', r: 'c', m: { flatDR: .08 }, d: '−8% erlittener Schaden' },
+  bastion: { n: 'Bollwerk', i: '🏰', r: 'r', m: { startShield: .2 }, d: 'Starte jeden Kampf mit einem Schild (20% Max-LP)' },
+  revenge: { n: 'Vergeltung', i: '🪞', r: 'r', m: { thornsPct: .25 }, d: 'Reflektiert 25% des erlittenen Schadens' },
+  counter: { n: 'Konterkämpfer', i: '🥊', r: 'r', m: { counter: 1 }, d: 'Nach Ausweichen, Betäuben oder Blenden: nächster Treffer ×2,5' },
+  hunter:  { n: 'Zeni-Jäger', i: '💰', r: 'c', m: { goldPct: .35 }, d: '+35% Gold' },
+  endure:  { n: 'Durchhaltewille', i: '🕯️', r: 'r', m: { endure: 1 }, d: 'Überlebe pro Kampf einmal einen tödlichen Treffer mit 1 LP' },
 };
 
 /* ---------- Relikte: nur als Boss-Belohnung ---------- */
@@ -158,6 +244,11 @@ const RELIC = {
   kaio:    { n: 'Kaios Lehre', i: '🐒', r: 'l', m: { kiOnHit: 2, regenPct: .3 }, d: 'Treffer geben +2 Ki, +30% Ki-Regeneration' },
   senzubag:{ n: 'Senzu-Beutel', i: '👝', r: 'l', m: { hpRegen: .6, killHeal: .04 }, d: 'Regeneriert 0,6 LP/s, +4% LP nach Siegen; sofort 2 Senzu-Bohnen', onGet: 'senzu2' },
   dragonfist:{ n: 'Drachenfaust', i: '🐲', r: 'l', m: { spdPct: .30, ls: .04 }, d: '+30% Tempo, +4% Lebensraub' },
+  hakaiseal: { n: 'Hakai-Siegel', i: '🟣', r: 'l', m: { techDmg: .5, atkPct: .15 }, d: '+50% Technik-Schaden, +15% Angriff' },
+  potara:  { n: 'Potara-Ohrringe', i: '🧿', r: 'l', m: { atkPct: .25, hpPct: .25 }, d: '+25% Angriff, +25% LP' },
+  sagegi:  { n: 'Gi des Weisen', i: '🥋', r: 'l', m: { flatDR: .12, hpRegen: .8, startShield: .15 }, d: '−12% Schaden, +0,8 LP/s, Start-Schild (15%)' },
+  whisstaff: { n: 'Whis’ Stab', i: '🪄', r: 'l', m: { techCd: .3, kiOnHit: 2 }, d: '−30% Abklingzeit, Treffer geben +2 Ki' },
+  timering:{ n: 'Zeitring', i: '💍', r: 'l', m: { startShield: .25, endure: 1 }, d: 'Start-Schild (25%) und überlebe einmal pro Kampf einen tödlichen Treffer' },
 };
 
 const ITEMS = {
@@ -190,6 +281,9 @@ const META = [
   { id: 'startform', n: 'Start-Form', i: '🔥', d: 'Starte jeden Run mit höherer Transformationsstufe (braucht „Transformation“)', max: 9, cost: l => 90 + l * 80, needs: 'unlock_form' },
   { id: 'unlock_genkidama', n: 'Genkidama', i: '🔵', d: 'Schaltet die ultimative Technik frei', max: 1, cost: () => 220, unlock: true },
   { id: 'unlock_finalflash', n: 'Final Flash', i: '🟡', d: 'Schaltet Vegetas Strahl frei', max: 1, cost: () => 260, unlock: true },
+  { id: 'unlock_superkame', n: 'Super-Kamehameha', i: '🌊', d: 'Schaltet die verstärkte Welle frei', max: 1, cost: () => 300, unlock: true },
+  { id: 'unlock_zeitsprung', n: 'Zeitsprung', i: '⏪', d: 'Schaltet Whis’ Zeittechnik frei', max: 1, cost: () => 380, unlock: true },
+  { id: 'unlock_clone', n: 'Kampfklone', i: '👥', d: 'Schaltet die Klon-Technik frei', max: 1, cost: () => 260, unlock: true },
   { id: 'unlock_hakai',     n: 'Hakai', i: '🟪', d: 'Schaltet die Zerstörung frei', max: 1, cost: () => 320, unlock: true },
 ];
 
@@ -216,15 +310,15 @@ const gravInfo = g => g === 0 ? 'Normal' : `Gegner +${g * 22}% LP, +${g * 14}% S
 /* ---------- Transformations-Leiter: ein Item, unendlich aufwertbar ---------- */
 const FORM_MAX = 11;
 const FORMS = [null,
-  { n: 'Kaio-Ken ×2',  ico: '🔴', hair: null, eye: null, aura: '#ff4a3d', atk: .30, spd: .10, regen: 0, taken: 0, drain: .010, dodge: 0, crit: 0, style: 'kk' },
-  { n: 'Kaio-Ken ×4',  ico: '🔴', hair: null, eye: null, aura: '#ff3a2d', atk: .45, spd: .15, regen: 0, taken: 0, drain: .013, dodge: 0, crit: 0, style: 'kk' },
-  { n: 'Kaio-Ken ×10', ico: '🔴', hair: null, eye: null, aura: '#ff2a2a', atk: .80, spd: .25, regen: 0, taken: 0, drain: .020, dodge: 0, crit: 0, style: 'kk' },
-  { n: 'Super Saiyajin',   ico: '👱', hair: '#ffe14a', eye: '#27e0c4', aura: '#ffe14a', atk: .60, spd: .15, regen: .50, taken: 0, dodge: 0, crit: 0, style: 'ssj' },
-  { n: 'Super Saiyajin 2', ico: '⚡', hair: '#ffe94a', eye: '#27e0c4', aura: '#fff06a', atk: .85, spd: .20, regen: .60, taken: 0, dodge: 0, crit: 0, style: 'ssj2' },
-  { n: 'Super Saiyajin 3', ico: '🦁', hair: '#ffd21a', eye: '#27e0c4', aura: '#ffd21a', atk: 1.20, spd: .25, regen: .70, taken: 0, dodge: 0, crit: 0, kidrain: 2.5, style: 'ssj3' },
-  { n: 'Super Saiyajin God',  ico: '🔥', hair: '#ff3b4a', eye: '#ff8a96', aura: '#ff4a5e', atk: 1.10, spd: .30, regen: .80, taken: -.15, dodge: 0, crit: 0, style: 'ssj' },
-  { n: 'Super Saiyajin Blue', ico: '💠', hair: '#38b6ff', eye: '#8fe0ff', aura: '#38b6ff', atk: 1.50, spd: .35, regen: 1.0, taken: -.20, dodge: 0, crit: .10, style: 'ssj2' },
-  { n: 'Blue Kaio-Ken ×20',   ico: '🌌', hair: '#38b6ff', eye: '#ff6aa0', aura: '#ff3d8a', atk: 2.30, spd: .45, regen: 1.0, taken: -.20, drain: .015, dodge: 0, crit: .10, style: 'ssj2' },
-  { n: 'Ultra Instinct (Zeichen)',    ico: '🪽', hair: '#cfd9ea', eye: '#e8f2ff', aura: '#cfe0ff', atk: 1.70, spd: .50, regen: .5, taken: -.25, dodge: .35, crit: 0, style: 'ssj' },
-  { n: 'Ultra Instinct (gemeistert)', ico: '🪽', hair: '#f4f8ff', eye: '#ffffff', aura: '#ffffff', atk: 2.60, spd: .60, regen: .5, taken: -.30, dodge: .60, crit: .15, style: 'mui' },
+  { n: 'Kaio-Ken ×2',  ico: '🔴', hair: null, eye: null, aura: '#ff4a3d', atk: .25, spd: .10, regen: 0, taken: 0, drain: .010, dodge: 0, crit: 0, style: 'kk' },
+  { n: 'Kaio-Ken ×4',  ico: '🔴', hair: null, eye: null, aura: '#ff3a2d', atk: .38, spd: .15, regen: 0, taken: 0, drain: .013, dodge: 0, crit: 0, style: 'kk' },
+  { n: 'Kaio-Ken ×10', ico: '🔴', hair: null, eye: null, aura: '#ff2a2a', atk: .60, spd: .22, regen: 0, taken: 0, drain: .020, dodge: 0, crit: 0, style: 'kk' },
+  { n: 'Super Saiyajin',   ico: '👱', hair: '#ffe14a', eye: '#27e0c4', aura: '#ffe14a', atk: .50, spd: .15, regen: .50, taken: 0, dodge: 0, crit: 0, style: 'ssj' },
+  { n: 'Super Saiyajin 2', ico: '⚡', hair: '#ffe94a', eye: '#27e0c4', aura: '#fff06a', atk: .70, spd: .20, regen: .60, taken: 0, dodge: 0, crit: 0, style: 'ssj2' },
+  { n: 'Super Saiyajin 3', ico: '🦁', hair: '#ffd21a', eye: '#27e0c4', aura: '#ffd21a', atk: .95, spd: .25, regen: .70, taken: 0, dodge: 0, crit: 0, kidrain: 3, style: 'ssj3' },
+  { n: 'Super Saiyajin God',  ico: '🔥', hair: '#ff3b4a', eye: '#ff8a96', aura: '#ff4a5e', atk: .85, spd: .28, regen: .80, taken: -.10, dodge: 0, crit: 0, style: 'ssj' },
+  { n: 'Super Saiyajin Blue', ico: '💠', hair: '#38b6ff', eye: '#8fe0ff', aura: '#38b6ff', atk: 1.10, spd: .32, regen: 1.0, taken: -.12, dodge: 0, crit: .05, style: 'ssj2' },
+  { n: 'Blue Kaio-Ken ×20',   ico: '🌌', hair: '#38b6ff', eye: '#ff6aa0', aura: '#ff3d8a', atk: 1.50, spd: .40, regen: 1.0, taken: -.10, drain: .02, dodge: 0, crit: .05, style: 'ssj2' },
+  { n: 'Ultra Instinct (Zeichen)',    ico: '🪽', hair: '#cfd9ea', eye: '#e8f2ff', aura: '#cfe0ff', atk: 1.10, spd: .40, regen: .5, taken: -.12, dodge: .20, crit: 0, style: 'ssj' },
+  { n: 'Ultra Instinct (gemeistert)', ico: '🪽', hair: '#f4f8ff', eye: '#ffffff', aura: '#ffffff', atk: 1.60, spd: .50, regen: .5, taken: -.15, dodge: .30, crit: .08, style: 'mui' },
 ];

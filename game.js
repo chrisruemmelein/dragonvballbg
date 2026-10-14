@@ -48,7 +48,7 @@ const formLv = () => { const t = run.techs.find(t => t.id === 'form'); return t 
 const formDur = l => Math.round(12 + Math.min(l, FORM_MAX) * .8);
 function formAt(l) {
   const f = FORMS[Math.min(l, FORM_MAX)], x = l > FORM_MAX ? 1 + .12 * (l - FORM_MAX) : 1;
-  return Object.assign({}, NOFORM, f, { atk: f.atk * x, spd: f.spd * x, regen: f.regen * x, crit: f.crit * x, dodge: Math.min(.8, f.dodge * x) });
+  return Object.assign({}, NOFORM, f, { atk: f.atk * x, spd: f.spd * x, regen: f.regen * x, crit: f.crit * x, dodge: Math.min(.4, f.dodge * x) });
 }
 function formDesc(l) {
   const f = formAt(l), pc = v => Math.round(v * 100), p = [];
@@ -89,7 +89,8 @@ function buzz(ms) { try { if (SAVE.set.vib && navigator.vibrate) navigator.vibra
 function stats() {
   const c = CHARS[run.char];
   const A = { atkPct: 0, hpPct: 0, hpFlat: 0, def: 0, regenPct: 0, crit: 0, critDmg: 0, ls: 0, spdPct: 0, hpRegen: 0, thorns: 0, taken: 0, goldPct: 0,
-              ballPct: 0, lowHpAtk: 0, kiOnHit: 0, kiOnHurt: 0, execute: 0, killHeal: 0, maxKi: 0 };
+              ballPct: 0, lowHpAtk: 0, kiOnHit: 0, kiOnHurt: 0, execute: 0, killHeal: 0, maxKi: 0,
+              techDmg: 0, techCd: 0, techCost: 0, dbl: 0, rage: 0, flatDR: 0, startShield: 0, thornsPct: 0, counter: 0, endure: 0 };
   let atkMul = 1;
   const add = m => { for (const k in m) { if (k === 'atkPct') atkMul *= 1 + m[k]; else A[k] += m[k]; } };
   add(c.mods);
@@ -108,6 +109,8 @@ function stats() {
     ls: A.ls, spd: Math.max(.5, 1 + A.spdPct), hpRegen: A.hpRegen, thorns: A.thorns,
     taken: 1 + A.taken, goldPct: A.goldPct, ballPct: A.ballPct,
     lowHpAtk: A.lowHpAtk, kiOnHit: A.kiOnHit, kiOnHurt: A.kiOnHurt, execute: A.execute, killHeal: A.killHeal,
+    techDmg: A.techDmg, techCd: Math.min(.5, A.techCd), techCost: Math.min(.4, A.techCost), dbl: Math.min(.8, A.dbl), rage: A.rage,
+    flatDR: Math.min(.5, A.flatDR), startShield: A.startShield, thornsPct: Math.min(.6, A.thornsPct), counter: A.counter, endure: A.endure,
   };
 }
 
@@ -144,6 +147,9 @@ const BOSS_TRAITS = {
   raditz: ['fast'], vegeta: ['barrage', 'berserk'], freezer: ['barrage', 'regen', 'armor'],
   gero: ['drain', 'armor'], android17: ['fast', 'barrage'], cell1: ['regen', 'barrage'], cell2: ['regen', 'armor', 'barrage'],
   dabura: ['armor', 'berserk'], fatbuu: ['regen', 'drain'], superbuu: ['barrage', 'regen', 'berserk'], kidbuu: ['fast', 'barrage', 'berserk'],
+  beerus: ['armor', 'seeker', 'berserk'], goldfrieza: ['barrage', 'regen', 'seeker'], hit: ['fast', 'seeker', 'barrage'], zamasufusion: ['regen', 'drain', 'seeker'],
+  jiren: ['armor', 'berserk', 'seeker', 'barrage'], broly: ['berserk', 'armor', 'sap'], moro: ['drain', 'sap', 'regen'], granolah: ['fast', 'seeker', 'barrage'],
+  gas: ['barrage', 'armor', 'seeker'], cellmax: ['regen', 'armor', 'berserk', 'sap'],
 };
 
 function makeEnemy(f, type) {
@@ -164,7 +170,7 @@ function makeEnemy(f, type) {
   if (boss) tr = (BOSS_TRAITS[id] || []).slice();
   else { const k = TRAIT_KEYS.slice(); while (tr.length < nT) tr.push(k.splice(ri(0, k.length - 1), 1)[0]); }
   const traits = {}; tr.forEach(t => traits[t] = 1);
-  if (traits.armor) def *= 1.6;
+  if (traits.armor) def *= 1.4;
   if (traits.fast) int *= .75;
   return { id, n: d.n, p: d.p, size: d.size * (boss ? 1.08 : 1), hp: Math.round(hp), atk, int, def, chargeEvery, boss, type, traits };
 }
@@ -337,7 +343,8 @@ function startBattle() {
   const n = run.node, e = makeEnemy(run.floor, n.type), S = stats();
   B = { e, S, ehp: e.hp, eMax: e.hp, pT: 0, eT: e.int * .5, ki: S.maxKi * .5, cd: {}, buff: { dodge: 0, pill: 0 }, form: null,
         intro: e.boss ? 1.9 : e.type === 'elite' ? 1.2 : .9, stun: 0, blind: 0, shield: 0, shieldT: 0, burn: null, combo: 0, charge: null, queue: [], timers: [],
-        eCount: 0, over: false, nextCrit: false, enraged: 0, auto: SAVE.set.auto, fast: SAVE.set.fast, autoT: 0, time: 0 };
+        eCount: 0, over: false, nextCrit: false, enraged: 0, eShield: 0, shPhase: 0, vuln: 0, clone: 0, rage: 0, counterReady: false, endured: false, hist: [], histT: 0, auto: SAVE.set.auto, fast: SAVE.set.fast, autoT: 0, time: 0 };
+  if (S.startShield > 0) { B.shield = S.maxHp * S.startShield; B.shieldT = 12; }
   go('battle-ui');
   startLoop();
 }
@@ -376,7 +383,8 @@ function tick(dt) {
   if (s.hpRegen) heal(s.hpRegen * dt);
   for (const k in B.cd) B.cd[k] = Math.max(0, B.cd[k] - dt);
   B.buff.dodge = Math.max(0, B.buff.dodge - dt); B.buff.pill = Math.max(0, B.buff.pill - dt);
-  B.blind = Math.max(0, B.blind - dt);
+  B.blind = Math.max(0, B.blind - dt); B.vuln = Math.max(0, B.vuln - dt); B.clone = Math.max(0, B.clone - dt);
+  B.histT += dt; if (B.histT >= .5) { B.histT = 0; B.hist.push({ t: B.time, hp: run.hp }); if (B.hist.length > 30) B.hist.shift(); }
   if (B.shieldT > 0) { B.shieldT -= dt; if (B.shieldT <= 0) B.shield = 0; }
   if (e.traits.regen) B.ehp = Math.min(B.eMax, B.ehp + B.eMax * .01 * dt);
   if (B.burn) {
@@ -396,6 +404,7 @@ function tick(dt) {
     B.pT -= 1; let m = 1;
     if (B.combo > 0) { m = 2.2; B.combo--; }
     dealDamage(m, { basic: true });
+    if (B.clone > 0) dealDamage(.7, {});
   }
   if (B.ehp <= 0) return winBattle();
 
@@ -419,6 +428,8 @@ function tick(dt) {
   }
   // Boss-Phasen
   if (e.boss) {
+    if (B.shPhase < 1 && B.ehp < B.eMax * .7) { B.shPhase = 1; B.eShield = B.eMax * .12; vis.banner('🛡️ ' + e.n + ' errichtet ein Schild!', '#9fe9ff', 1300); }
+    if (B.shPhase < 2 && B.ehp < B.eMax * .35) { B.shPhase = 2; B.eShield = B.eMax * .12; vis.banner('🛡️ Zweites Schild!', '#9fe9ff', 1300); }
     if (B.enraged < 1 && B.ehp < B.eMax * .5) { B.enraged = 1; e.atk *= 1.25; e.int *= .85; vis.banner('😡 ' + e.n + ' rastet aus!', '#ff5a3d', 1400); vis.shake(true); }
     if (B.enraged < 2 && B.ehp < B.eMax * .25) { B.enraged = 2; e.atk *= 1.15; e.chargeEvery = 2; vis.banner('💢 LETZTE KRAFT!', '#ff2a5a', 1400); vis.shake(true); }
   }
@@ -433,16 +444,21 @@ function dealDamage(mult, o = {}) {
   const F = B.form || NOFORM;
   atk *= 1 + F.atk;
   if (B.buff.pill > 0) atk *= 1.6;
+  if (s.rage) atk *= 1 + B.rage;
   if (s.lowHpAtk && run.hp < s.maxHp * .5) atk *= 1 + s.lowHpAtk;
   if (s.execute && B.ehp < B.eMax * .3) atk *= 1 + s.execute;
   let crit = Math.random() < s.crit + F.crit;
   if (B.nextCrit) { crit = true; B.nextCrit = false; }
   let d = atk * mult * (crit ? s.critDmg : 1);
+  if (B.counterReady && s.counter && o.basic) { d *= 2.5; B.counterReady = false; floatText('KONTER!', 'e', 'crit'); }
+  if (B.vuln > 0) d *= 1.25;
   if (!o.pierce) d /= (1 + B.e.def * .06);
   d = Math.max(1, Math.round(d * rnd(.92, 1.08)));
+  if (B.eShield > 0) { const ab = Math.min(B.eShield, d); B.eShield -= ab; d -= ab; if (d <= 0) { floatText('🛡️', 'e', 'miss'); if (s.kiOnHit) B.ki = Math.min(s.maxKi, B.ki + s.kiOnHit); return; } }
   B.ehp = Math.max(0, B.ehp - d);
   if (s.ls) heal(d * s.ls);
   if (s.kiOnHit) B.ki = Math.min(s.maxKi, B.ki + s.kiOnHit);
+  if (s.rage) B.rage = Math.min(s.rage, B.rage + .015);
   floatText(d, 'e', crit ? 'crit' : '');
   sfx(crit ? 'crit' : 'hit');
   if (o.basic) vis.playerHit(crit); else vis.hitEnemy(crit);
@@ -450,46 +466,69 @@ function dealDamage(mult, o = {}) {
 
 function enemyHit(mult, heavy) {
   const s = B.S, e = B.e;
-  if (B.blind > 0) { floatText('Verfehlt!', 'p', 'miss'); return; }
+  const miss = txt => { floatText(txt, 'p', 'miss'); if (s.counter) B.counterReady = true; };
+  if (B.blind > 0) { miss('Verfehlt!'); return; }
   const F = B.form || NOFORM;
-  if (B.buff.dodge > 0 || (F.dodge && Math.random() < F.dodge)) { floatText('Ausgewichen!', 'p', 'miss'); vis.dodge(); return; }
-  let d = e.atk * mult * rnd(.9, 1.1) / (1 + s.def * .06) * s.taken * (1 + F.taken);
+  // Passives Ausweichen (Formen) wirkt nicht gegen Aufladungen und zielsuchende Angriffe – nur aktive Mittel
+  const seek = heavy || (e.traits.seeker && Math.random() < .3);
+  if (B.buff.dodge > 0 || (!seek && F.dodge && Math.random() < F.dodge)) { miss('Ausgewichen!'); vis.dodge(); return; }
+  let d = e.atk * mult * rnd(.9, 1.1) / (1 + s.def * .06) * s.taken * (1 + F.taken) * (1 - s.flatDR);
   if (B.time > 75) d *= 1 + (B.time - 75) / 25;
   d = Math.max(1, Math.round(d));
   const total = d;
   if (B.shield > 0) { const ab = Math.min(B.shield, d); B.shield -= ab; d -= ab; floatText('🛡️' + Math.round(ab), 'p', 'heal'); }
-  if (d > 0) { run.hp -= d; floatText('-' + d, 'p', 'me'); }
+  if (d > 0) { run.hp -= d; floatText('-' + d, 'p', 'me'); B.rage = 0; }
+  if (run.hp <= 0 && s.endure && !B.endured) { run.hp = 1; B.endured = true; vis.banner('🕯️ DURCHHALTEWILLE!', '#ffe14a', 1100); }
   if (e.traits.drain) B.ehp = Math.min(B.eMax, B.ehp + total * .4);
+  if (e.traits.sap) B.ki = Math.max(0, B.ki - 8);
   if (s.thorns) B.ehp = Math.max(1, B.ehp - s.thorns);
+  if (s.thornsPct && d > 0) B.ehp = Math.max(1, B.ehp - d * s.thornsPct);
   if (s.kiOnHurt) B.ki = Math.min(s.maxKi, B.ki + s.kiOnHurt);
   sfx('hurt'); buzz(heavy ? 70 : 20);
   vis.enemyAttack(!!heavy, d > 0);
 }
 
+/* Kosten & Abklingzeit einer Technik (inkl. Passive, Form-Aufstieg) */
+function techCC(t, s) {
+  const T = TECH[t.id]; let cost = T.cost, cd = T.cd;
+  if (T.form) { cost += 5 * t.lv; cd += 1.2 * t.lv; }
+  if (cost > 0) cost = Math.round(cost * (1 - s.techCost));
+  return { cost, cd: cd * (1 - s.techCd) };
+}
+
 function useTech(i) {
   if (!B || B.over || B.intro > 0) return;
   const t = run.techs[i]; if (!t) return;
-  const T = TECH[t.id], s = B.S;
-  if ((B.cd[t.id] || 0) > 0 || B.ki < T.cost) return;
-  B.ki -= T.cost; B.cd[t.id] = T.cd;
+  const T = TECH[t.id], s = B.S, cc = techCC(t, s);
+  if ((B.cd[t.id] || 0) > 0 || B.ki < cc.cost) return;
+  B.ki -= cc.cost; B.cd[t.id] = cc.cd;
+  if (T.hpCost) run.hp = Math.max(1, run.hp - s.maxHp * T.hpCost);
   const lvm = 1 + .3 * (t.lv - 1);
   sfx('tech');
   const delay = vis.tech(T, t) || 0;      // Dauer bis zum Einschlag (Optik)
-  const hit = () => {
-    if (T.mult) for (let h = 0; h < (T.hits || 1); h++) dealDamage(T.mult * lvm, { pierce: T.pierce });
-    if (T.hakai) { const part = B.ehp * (B.e.boss ? T.hakai * .5 : T.hakai); B.ehp = Math.max(0, B.ehp - part); floatText(Math.round(part), 'e', 'crit'); dealDamage(1 * lvm); }
-    if (T.stun) { B.stun = Math.max(B.stun, B.e.boss ? T.stun * .5 : T.stun); B.charge = null; B.eT = 0; }
-    if (T.burn) B.burn = { t: T.burn, dps: s.atk * .9 * lvm, sum: 0 };
+  const once = () => {
+    if (T.mult) for (let h = 0; h < (T.hits || 1); h++) dealDamage(T.mult * lvm * (1 + s.techDmg), { pierce: T.pierce });
+    if (T.hakai) { const part = B.ehp * (B.e.boss ? T.hakai * .5 : T.hakai); B.ehp = Math.max(0, B.ehp - part); floatText(Math.round(part), 'e', 'crit'); dealDamage(1 * lvm * (1 + s.techDmg)); }
+    if (T.stun) { B.stun = Math.max(B.stun, B.e.boss ? T.stun * .5 : T.stun); B.charge = null; B.eT = 0; if (s.counter) B.counterReady = true; }
+    if (T.vuln) B.vuln = T.vuln;
+    if (T.burn) B.burn = { t: T.burn, dps: s.atk * .9 * lvm * (1 + s.techDmg), sum: 0 };
     if (B.ehp <= 0) winBattle();
   };
+  const hit = () => { once(); if (s.dbl && Math.random() < s.dbl && !B.over) later(.4, once); };
   if (T.dodge) { B.buff.dodge = T.dodge; B.nextCrit = true; }
   if (T.heal) { heal(s.maxHp * T.heal * lvm); floatText('+' + Math.round(s.maxHp * T.heal * lvm), 'p', 'heal'); sfx('heal'); }
   if (T.form) B.form = Object.assign({}, formAt(t.lv), { lv: t.lv, t: formDur(t.lv) });
-  if (T.blind) B.blind = B.e.boss ? T.blind * .6 : T.blind;
+  if (T.blind) { B.blind = B.e.boss ? T.blind * .6 : T.blind; if (s.counter) B.counterReady = true; }
   if (T.shield) { B.shield = s.maxHp * T.shield * lvm; B.shieldT = 8; }
   if (T.combo) B.combo = T.combo;
+  if (T.clone) B.clone = T.clone;
   if (T.kigain) B.ki = Math.min(s.maxKi, B.ki + T.kigain * lvm);
-  if (T.mult || T.hakai || T.stun || T.burn) { if (delay > 0) later(delay, hit); else hit(); }
+  if (T.rewind) {
+    const old = B.hist.length ? B.hist.find(h => h.t >= B.time - 8.2) || B.hist[0] : null;
+    const to = Math.min(s.maxHp, Math.max(old ? old.hp : run.hp, run.hp + s.maxHp * .15));
+    floatText('+' + Math.round(Math.max(0, to - run.hp)), 'p', 'heal'); run.hp = to; B.ki = Math.min(s.maxKi, B.ki + 20); sfx('heal');
+  }
+  if (T.mult || T.hakai || T.stun || T.burn || T.vuln) { if (delay > 0) later(delay, hit); else hit(); }
 }
 
 const DODGE_COST = 25;
@@ -534,7 +573,7 @@ function skipBattle() {
 
 function autoPlay() {
   const s = B.S, has = id => run.techs.findIndex(t => t.id === id);
-  const ready = i => i >= 0 && (B.cd[run.techs[i].id] || 0) <= 0 && B.ki >= TECH[run.techs[i].id].cost;
+  const ready = i => i >= 0 && (B.cd[run.techs[i].id] || 0) <= 0 && B.ki >= techCC(run.techs[i], s).cost;
   if (B.charge && !B.charge.dodged) {
     for (const id of ['kiai', 'taiyoken', 'teleport']) { const i = has(id); if (ready(i)) return useTech(i); }
     if (B.ki >= DODGE_COST) return dodgeCharge();
@@ -543,9 +582,12 @@ function autoPlay() {
   if (run.hp < s.maxHp * .65 && B.shield <= 0) { const i = has('kishield'); if (ready(i)) return useTech(i); }
   if (SAVE.set.autoSenzu && run.hp < s.maxHp * .3) { const i = run.items.indexOf('senzu'); if (i >= 0) return useItem(i); }
   { const i = has('form'); if (i >= 0 && !B.form && ready(i) && (B.e.boss || B.e.type === 'elite' || B.eMax > B.S.atk * 18)) return useTech(i); }
+  { const i = has('donut'); if (i >= 0 && !B.vuln && ready(i)) return useTech(i); }
+  { const i = has('clone'); if (i >= 0 && B.clone <= 0 && ready(i)) return useTech(i); }
+  { const i = has('zeitsprung'); if (i >= 0 && run.hp < s.maxHp * .4 && ready(i)) return useTech(i); }
   const ci = has('combo'); if (ci >= 0 && B.combo <= 0 && ready(ci)) return useTech(ci);
   const pi = has('powerup'); if (pi >= 0 && B.ki < s.maxKi * .3 && ready(pi)) return useTech(pi);
-  const skip = ['kiai', 'taiyoken', 'teleport', 'heal', 'kishield', 'form', 'combo', 'powerup'];
+  const skip = ['kiai', 'taiyoken', 'teleport', 'heal', 'kishield', 'form', 'combo', 'powerup', 'donut', 'clone', 'zeitsprung'];
   const order = run.techs.map((t, i) => i).filter(i => !skip.includes(run.techs[i].id))
     .sort((a, b) => TECH[run.techs[b].id].cost - TECH[run.techs[a].id].cost);
   for (const i of order) if (ready(i)) return useTech(i);
@@ -908,7 +950,7 @@ function go(name, arg) {
 function updateBattleUI() {
   if (!VIS || !B || !$('#eHp')) return;
   const s = B.S, e = B.e;
-  $('#eHp').style.width = (B.ehp / B.eMax * 100) + '%'; $('#eHpT').textContent = Math.ceil(B.ehp) + ' / ' + B.eMax;
+  $('#eHp').style.width = (B.ehp / B.eMax * 100) + '%'; $('#eHpT').textContent = Math.ceil(B.ehp) + ' / ' + B.eMax + (B.eShield > 0 ? '  🛡️' + Math.ceil(B.eShield) : '');
   $('#pHp').style.width = clamp(run.hp / s.maxHp * 100, 0, 100) + '%'; $('#pHpT').textContent = Math.max(0, Math.ceil(run.hp)) + ' / ' + s.maxHp + (B.shield > 0 ? '  🛡️' + Math.ceil(B.shield) : '');
   $('#pKi').style.width = (B.ki / s.maxKi * 100) + '%'; $('#pKiT').textContent = 'Ki ' + Math.floor(B.ki);
   const w = $('#warn'); w.hidden = !B.charge;
@@ -946,7 +988,7 @@ function updateBattleUI() {
       const t = run.techs[i];
       if (!t) return '<button class="tb empty">–</button>';
       const T = TECH[t.id];
-      return `<button class="tb" data-a="tech" data-i="${i}"><span class="ic">${tIcon(t)}</span><span><b>${tName(t)}</b><small>${T.cost} Ki</small></span><span class="cdo"></span></button>`;
+      return `<button class="tb" data-a="tech" data-i="${i}"><span class="ic">${tIcon(t)}</span><span><b>${tName(t)}</b><small class="tcost">${techCC(t, B.S).cost} Ki</small></span><span class="cdo"></span></button>`;
     }).join('');
     const ic = $('#items');
     ic.innerHTML = run.items.length ? run.items.map((id, i) => `<button class="ib" data-a="item" data-i="${i}">${ITEMS[id].i} ${ITEMS[id].n}</button>`).join('') : '<span class="small mut" style="flex:1;text-align:center">Keine Items</span>';
@@ -955,9 +997,10 @@ function updateBattleUI() {
   if (B.itemN !== run.items.length) B.uiBuilt = false;
   [...tc.children].forEach((b, i) => {
     const t = run.techs[i]; if (!t) return;
-    const T = TECH[t.id], cd = B.cd[t.id] || 0, ok = B.ki >= T.cost && cd <= 0;
-    b.classList.toggle('ready', ok); b.classList.toggle('nokai', B.ki < T.cost);
-    b.querySelector('.cdo').style.width = (T.cd ? cd / T.cd * 100 : 0) + '%';
+    const cc = techCC(t, s), cd = B.cd[t.id] || 0, ok = B.ki >= cc.cost && cd <= 0;
+    b.classList.toggle('ready', ok); b.classList.toggle('nokai', B.ki < cc.cost);
+    b.querySelector('.cdo').style.width = (cc.cd ? Math.min(100, cd / cc.cd * 100) : 0) + '%';
+    const tcEl = b.querySelector('.tcost'); if (tcEl) tcEl.textContent = cc.cost + ' Ki';
   });
 }
 
